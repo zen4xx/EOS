@@ -15,9 +15,9 @@ KERNEL_OFFSET equ 0x1000
 
 %include "bs_print.asm"
 %include "bs_print_hex.asm"
-%include "../32bit_gdt.asm"
-%include "../32bit_print.asm"
-%include "../32bit_switch.asm"
+%include "32bit_gdt.asm"
+%include "32bit_print.asm"
+%include "32bit_switch.asm"
 %include "bs_disk.asm"
 
 [bits 16]
