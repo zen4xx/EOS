@@ -18,7 +18,7 @@ run: os-image.bin
 	qemu-system-i386 -fda os-image.bin
 
 debug: os-image.bin kernel.elf
-	qemu-system-i386 -s -fda os-image.bin &
+	qemu-system-x86_64 -s -fda os-image.bin &
 	i386-elf-gdb -ex "target remote localhost:8080" -ex "symbol-file kernel.elf"
 
 %.o: %.c ${HEADERS}
