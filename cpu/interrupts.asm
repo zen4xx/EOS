@@ -277,9 +277,3 @@ isr31:
     push byte 31
     jmp isr_common_stub
 
-/*
-file under BSD 3 clause License
-Copyright (C) 2018, Carlos Fenollosa
-Edited 2025 by zen4xx
-All rights reserved
-*/
