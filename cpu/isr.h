@@ -6,7 +6,6 @@
 #include "../libc/memory.h"
 #include "idt.h"
 
-/* ISRs reserved for CPU exceptions */
 extern void isr0();
 extern void isr1();
 extern void isr2();
@@ -40,15 +39,21 @@ extern void isr29();
 extern void isr30();
 extern void isr31();
 
-/* Struct which aggregates many registers */
 typedef struct {
-   u32 ds; /* Data segment selector */
-   u32 edi, esi, ebp, esp, ebx, edx, ecx, eax; /* Pushed by pusha. */
-   u32 int_no, err_code; /* Interrupt number and error code (if applicable) */
-   u32 eip, cs, eflags, useresp, ss; /* Pushed by the processor automatically */
+   u32 ds; 
+   u32 edi, esi, ebp, esp, ebx, edx, ecx, eax; 
+   u32 int_no, err_code; 
+   u32 eip, cs, eflags, useresp, ss; 
 } registers_t;
 
 void isr_install();
 void isr_handler(registers_t r);
 
 #endif
+
+/*
+file under BSD 3 clause License
+Copyright (C) 2018, Carlos Fenollosa
+Edited 2025 by zen4xx
+All rights reserved
+*/

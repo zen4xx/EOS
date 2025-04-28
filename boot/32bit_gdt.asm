@@ -1,9 +1,7 @@
 gdt_start: 
-    ; the gdt starts with a null 8-byte
     dd 0x0 ; 4 byte
     dd 0x0 ; 4 byte
 
-; GDT for code segment. base = 0x00000000, length = 0xfffff
 gdt_code: 
     dw 0xffff    ; segment length, bits 0-15
     dw 0x0       ; segment base, bits 0-15
@@ -12,7 +10,6 @@ gdt_code:
     db 11001111b ; flags (4 bits) + segment length, bits 16-19
     db 0x0       ; segment base, bits 24-31
 
-; GDT for data segment. base and length identical to code segment
 gdt_data:
     dw 0xffff
     dw 0x0
