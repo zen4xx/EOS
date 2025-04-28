@@ -13,12 +13,12 @@ KERNEL_OFFSET equ 0x1000
     call switch_to_pm 
     jmp $ 
 
-%include "bs_print.asm"
-%include "bs_print_hex.asm"
-%include "bs_disk.asm"
-%include "32bit_gdt.asm"
-%include "32bit_print.asm"
-%include "32bit_switch.asm"
+%include "boot/bs_print.asm"
+%include "boot/bs_print_hex.asm"
+%include "boot/bs_disk.asm"
+%include "boot/32bit_gdt.asm"
+%include "boot/32bit_print.asm"
+%include "boot/32bit_switch.asm"
 
 [bits 16]
 load_kernel:
@@ -27,7 +27,7 @@ load_kernel:
     call print_nl
 
     mov bx, KERNEL_OFFSET
-    mov dh, 16 
+    mov dh, 31 
     mov dl, [BOOT_DRIVE]
     call disk_load
     ret
@@ -42,9 +42,9 @@ BEGIN_PM:
 
 BOOT_DRIVE db 0 
 MSG_REAL_MODE db "Started in 16-bit Real Mode", 0
-MSG_PROT_MODE db "Landed in 32-bit Protected Mode", 0
+MSG_PROT_MODE db "Loaded in 32-bit Protected Mode", 0
 MSG_LOAD_KERNEL db "Loading kernel into memory", 0
-
+MSG_RETURNED_KERNEL db "Returned from kernel", 0
 
 times 510 - ($-$$) db 0
 dw 0xaa55

@@ -63,7 +63,7 @@ int print_char(char c, int col, int row, char attr) {
 
     if (offset >= MAX_ROWS * MAX_COLS * 2){
     	for(int i = 0; i < MAX_ROWS; ++i){
-		memory_copy(get_offset(0, i-1) + VIDEO_ADDRESS, 
+		mem_cpy(get_offset(0, i-1) + VIDEO_ADDRESS, 
 				get_offset(0, i) + VIDEO_ADDRESS,
 				MAX_COLS * 2); 
 	}

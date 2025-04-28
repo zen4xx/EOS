@@ -1,13 +1,12 @@
 #include "../drivers/screen.h"
-#include "../libc/memory.h"
+#include "../cpu/isr.h"
 
 void main() {
-    clear();
-    for(int i = 0; i < 24; ++i){
-    	char str[255];
-	int_to_ascii(i, str);
-	krnl_print_at(str, 0, i, 0x0f);
-    }
-   	krnl_print_at("some text\n", 60, 24, 0x0f);
-	krnl_print("another some text");
+
+	clear();
+
+	isr_install();
+
+	__asm__ __volatile__("int $2");
+	__asm__ __volatile__("int $3");
 }

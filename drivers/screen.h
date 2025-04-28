@@ -1,3 +1,6 @@
+#ifndef SCREEN_H
+#define SCREEN_H
+
 #define VIDEO_ADDRESS (char*)0xb8000
 #define MAX_ROWS 25
 #define MAX_COLS 80
@@ -9,3 +12,5 @@
 void clear();
 void krnl_print_at(char *msg, int col, int row, char color);
 void krnl_print(char *msg);
+
+#endif
