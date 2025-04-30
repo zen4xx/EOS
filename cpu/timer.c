@@ -3,14 +3,7 @@
 u32 tick = 0;
 
 static void timer_callback(registers_t reg) {
-
     ++tick;
-    krnl_print("tick: ");
-
-    char tick_ascii[256];
-    int_to_ascii(tick, tick_ascii);
-    krnl_print(tick_ascii);
-    krnl_print("\n");
 }
 
 void init_timer(u32 freq){
