@@ -1,5 +1,8 @@
 #include "../drivers/screen.h"
 #include "../cpu/isr.h"
+#include "../cpu/timer.h"
+#include "../libc/libc.h"
+#include "../drivers/keyboard.h"
 
 void main() {
 
@@ -7,7 +10,9 @@ void main() {
 
 	isr_install();
 
-	__asm__ __volatile__("int $0");
-	__asm__ __volatile__("int $1");
-	__asm__ __volatile__("int $2");
+	asm volatile("sti");
+	init_timer(50);
+
+	init_keyboard();
+
 }
