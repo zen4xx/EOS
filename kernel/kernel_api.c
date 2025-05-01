@@ -2,25 +2,21 @@
 
 char* input_msg = "";
 
-//text appears after enter
-
 void keyboard_input(char c[]){
-    //later...
-    if(strcmp(c, "Esc")){
-        krnl_print("stoping the cpu\n");
-        asm volatile("hlt");
-    }
-    
-    else if(strcmp(c, "Enter")){
+
+    if(c[0] == '\n'){
         exec(input_msg);
         input_msg[0] = '\0';
-        krnl_print("\n");
+        krnl_print(c);
     }
-
-    else if(strcmp(c, "Backspace") && strlen(input_msg)) backspace(input_msg);
-    else if(strcmp(c, "Spacebar")) append(input_msg, ' ');
-    else 
-    {
+    else if(c[0] == '\r'){
+        if(strlen(input_msg) > 0){
+            backspace(input_msg);
+            krnl_print(c);
+        }
+    }
+    else{
         append_str(input_msg, c);
+        krnl_print(c);
     }
 }
