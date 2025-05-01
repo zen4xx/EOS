@@ -109,8 +109,8 @@ char *exception_messages[] = {
 };
 
 void isr_handler(registers_t reg) {
-    char s[3];
-    int_to_ascii(reg.int_no, s);
+    char* s;
+    s = int_to_ascii(reg.int_no);
     krnl_print(s);
     krnl_print(": ");
     krnl_print(exception_messages[reg.int_no]);

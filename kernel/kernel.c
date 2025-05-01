@@ -6,7 +6,6 @@ void main() {
 	irq_install();
 	krnl_print("W3lC0M3 T0 ");
 	krnl_print_at("EOS\n", -1, -1, 0x05);
-	krnl_print("type stop to halt the cpu\n");
 }
 
 void exec(char* cmd){
@@ -15,6 +14,6 @@ void exec(char* cmd){
 		asm volatile("hlt");
 	}
 	else if(strcmp(cmd, "HELP")){
-		krnl_print("\nComing soon!\n");
+		print("\nType STOP to halt the cpu\n");
 	}
 }

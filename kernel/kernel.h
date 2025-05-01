@@ -9,10 +9,4 @@
 
 void exec(char* cmd);
 
-typedef struct {
-    char* s;
-}Word;
-
-Word* split(char* cmd);
-
 #endif

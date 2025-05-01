@@ -15,7 +15,8 @@ void reverse(char s[]) {
     }
 }
 
-void int_to_ascii(int n, char str[]){
+char* int_to_ascii(int n){
+	char* str;
 	int i, sign;
 	if((sign = n) < 0) n = -n;
 	i = 0;
@@ -27,6 +28,8 @@ void int_to_ascii(int n, char str[]){
 	str[i] = '\0';
 
     reverse(str);
+
+	return str;
 }
 
 int strcmp(char s1[], char s2[]){
