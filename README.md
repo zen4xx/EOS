@@ -1,2 +1,2 @@
 # EOS
-Echobreak operation system
+Echobreak operating system
