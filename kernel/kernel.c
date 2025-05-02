@@ -1,6 +1,6 @@
 #include "kernel.h"
 
-void main() {
+void kernel_main() {
 	clear();
 	isr_install();
 	irq_install();
