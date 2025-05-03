@@ -1,4 +1,4 @@
 # EOS
 Echobreak operating system
 
-required i686-elf-gcc 
+i686-elf-gcc required
