@@ -23,7 +23,7 @@ void exec(char* cmd){
 		print("\nType HONORBOARD to print honor board");
 	}
 	else if(strcmp(cmd, "HONORBOARD")){
-		for(int i = 0; i < sizeof(hb_list)/(sizeof(char*)); ++i){
+		for(int i = 0; i < size(hb_list); ++i){
 			krnl_print("\n");
 			krnl_print_at(hb_list[i], -1, -1, i+2);
 		}
