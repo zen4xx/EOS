@@ -10,7 +10,7 @@ void kernel_main() {
 	krnl_print_at("EOS\n", -1, -1, COMBINE(VGA_MAGENTA, VGA_BLACK));
 }
 
-char* hb_list[] = {"OS developer:zen4x", "Site developer:Anrew24-coop", "Fan fiction author:Yan", "Fan fiction author:oslfnkwenfm", "Fan fiction author:Kilka"};
+char* hb_list[] = {"OS developer,malware???:zen4x", "Site developer:Andrew24-coop", "Fan fiction author:Yan", "Fan fiction author:oslfnkwenfm", "Fan fiction author:Kilka"};
 
 void exec(char* cmd){
 	if(strcmp(cmd, "STOP")){
