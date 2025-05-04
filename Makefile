@@ -2,18 +2,19 @@ C_SOURCES = $(wildcard kernel/*.c drivers/*.c cpu/*.c libc/*.c)
 HEADERS = $(wildcard kernel/*.h drivers/*.h cpu/*.h libc/*.h)
 OBJ = ${C_SOURCES:.c=.o cpu/interrupts.o} 
 
-CC = i386-elf-gcc
-GDB = i386-elf-gdb
+CC = i686-elf-gcc
+GDB = i686-elf-gdb
+LD = i686-elf-ld
 CFLAGS = -g
 
 os-image.bin: boot/boot.bin kernel.bin
 	cat $^ > os-image.bin
 
 kernel.bin: boot/kernel_entry.o ${OBJ}
-	i386-elf-ld -o $@ -Ttext 0x1000 $^ --oformat binary
+	${LD} -o $@ -Ttext 0x1000 $^ --oformat binary
 
 kernel.elf: boot/kernel_entry.o ${OBJ}
-	i386-elf-ld -o $@ -Ttext 0x1000 $^ 
+	${LD} -o $@ -Ttext 0x1000 $^ 
 
 run: os-image.bin
 	qemu-system-x86_64 -fda os-image.bin
