@@ -1,12 +1,12 @@
 #include "string.h"
 
-int strlen(char str[]){
+int strlen(char* str){
 	int r = 0;
 	while(str[r] != '\0') ++r;
 	return r;
 }
 
-void reverse(char s[]) {
+void reverse(char* s) {
     int c, i, j;
     for (i = 0, j = strlen(s)-1; i < j; ++i, --j) {
         c = s[i];
@@ -15,7 +15,7 @@ void reverse(char s[]) {
     }
 }
 
-char* int_to_ascii(int n){
+char* itoa(int n){
 	char* str;
 	int i, sign;
 	if((sign = n) < 0) n = -n;
@@ -32,7 +32,22 @@ char* int_to_ascii(int n){
 	return str;
 }
 
-int strcmp(char s1[], char s2[]){
+int atoi(char* s){
+	int res = 0;
+	char* reversed_s = s;
+	reverse(reversed_s);
+	for(int i = 0; i < strlen(reversed_s); ++i){
+		if(reversed_s[i] != '-'){
+			res += (reversed_s[i] - '0');
+		}
+		else{
+			res *= -1;
+		}
+	}
+	return res;
+}
+
+int strcmp(char* s1, char* s2){
 	if(strlen(s1) != strlen(s2)) return 0;
 	int i = strlen(s1);
 	while(i--) if (s1[i] != s2[i]) return 0;
@@ -43,13 +58,13 @@ void backspace(char s[]){
 	s[strlen(s)-1] = '\0';
 }
 
-void append(char s[], char n) {
+void append(char *s, char n) {
     int len = strlen(s);
     s[len] = n;
     s[len+1] = '\0';
 }
 
-void append_str(char s1[], char s2[]){
+void append_str(char* s1, char* s2){
 	for(int i = 0; i < strlen(s2); ++i){
 		append(s1, s2[i]);
 	}
