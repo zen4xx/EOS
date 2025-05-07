@@ -9,7 +9,7 @@ void keyboard_input(char c[]){
         input_msg[0] = '\0';
         krnl_print(c);
     }
-    else if(c[0] == '\r'){
+    else if(c[0] == '\b'){
         if(strlen(input_msg) > 0){
             backspace(input_msg);
             krnl_print(c);

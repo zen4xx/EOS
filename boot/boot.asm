@@ -46,5 +46,5 @@ MSG_PROT_MODE db "Loaded in 32-bit Protected Mode", 0
 MSG_LOAD_KERNEL db "Loading kernel into memory", 0
 MSG_RETURNED_KERNEL db "Returned from kernel", 0
 
-times 510 - ($-$$) db 0
-dw 0xaa55
+times 510 - ($ - $$) db 0
+dw 0xAA55
