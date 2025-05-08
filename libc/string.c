@@ -54,6 +54,17 @@ int strcmp(char* s1, char* s2){
 	return 1;
 }
 
+char* strdup(const char* s) {
+    int len = strlen(s) + 1;
+    char* dst = (char*)allocate(len);
+    if (!dst) return 0;
+    mem_cpy(dst, s, len);
+    return dst;
+}
+int isspace(char c) {
+    return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f' || c == '\v';
+}
+
 void backspace(char s[]){
 	s[strlen(s)-1] = '\0';
 }

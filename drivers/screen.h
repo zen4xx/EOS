@@ -10,7 +10,7 @@
 
 //kernel api
 void clear();
-void krnl_print_at(char *msg, int col, int row, char color);
-void krnl_print(char *msg);
+void krnl_print_at(const char *msg, int col, int row, char color);
+void krnl_print(const char *msg);
 
 #endif

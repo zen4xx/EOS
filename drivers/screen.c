@@ -15,7 +15,7 @@ int get_offset_col(int offset);
  * If col, row, are negative, we will use the current offset 
  * white on black is 0x0f
  */
-void krnl_print_at(char *msg, int col, int row, char color) {
+void krnl_print_at(const char *msg, int col, int row, char color) {
     int offset;
     if (col >= 0 && row >= 0)
         offset = get_offset(col, row);
@@ -33,7 +33,7 @@ void krnl_print_at(char *msg, int col, int row, char color) {
     }
 }
 
-void krnl_print(char *msg) {
+void krnl_print(const char *msg) {
     krnl_print_at(msg, -1, -1, 0x0f);
 }
 

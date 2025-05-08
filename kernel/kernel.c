@@ -1,7 +1,5 @@
 #include "kernel.h"
 
-#define HB
-
 void kernel_main() {
 	clear();
 	isr_install();
@@ -11,8 +9,6 @@ void kernel_main() {
 }
 
 const char* hb_list[] = {"OS developer,malware???:zen4x", "Site developer,malware???:Andrew24-coop", "Fan fiction author:Yan", "Fan fiction author:oslfnkwenfm", "Fan fiction author:Kilka"};
-
-char* get_word(char* cmd, int index); //it will be later split and returns array of string
 
 void exec(char* cmd){
 	if(cmd){
@@ -42,23 +38,4 @@ void exec(char* cmd){
 			krnl_print("Type HELP to list all commands");
 		}
 	}
-}
-
-
-char* get_word(char* cmd, int index){
-	char* word = "\0";
-	int len = strlen(cmd);
-	int j = 0;
-	for(int i = 0; i < len; ++i){
-		if(cmd[i] == ' '){
-			if(j == index) return word;
-			word[0] = '\0';
-			++j;
-		}
-		else {
-			append(word, cmd[i]); 
-		}
-	}
-	if(index == j) return word;
-	return "";
 }
