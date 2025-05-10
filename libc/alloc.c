@@ -59,6 +59,10 @@ void init_alloc(){
     Block* inital_block = (Block*)page_ptr;
     inital_block->size = ALLOCATOR_PAGE_SIZE;
     inital_block->is_free = 1;
+    inital_block->prev = inital_block->next = NULL;
+
+    free_list_head = inital_block;
+    is_init = 1;
 }
 
 void* allocate(int size){
@@ -70,6 +74,7 @@ void* allocate(int size){
         curr = (Block*)allocate_page();
         curr->size = ALLOCATOR_PAGE_SIZE;
         curr->is_free = 0;
+        curr->prev = curr->next = NULL;
     }
     if(curr->size > total_size){
         Block* new_block = (Block*)((char*)curr + total_size);

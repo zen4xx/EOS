@@ -32,35 +32,34 @@ char* itoa(int n){
 	return str;
 }
 
-int atoi(char* s){
-	int res = 0;
-	char* reversed_s = s;
-	reverse(reversed_s);
-	for(int i = 0; i < strlen(reversed_s); ++i){
-		if(reversed_s[i] != '-'){
-			res += (reversed_s[i] - '0');
-		}
-		else{
-			res *= -1;
-		}
-	}
-	return res;
+int atoi(char* s) {
+    int res = 0;
+    int sign = 1;
+
+    while (*s == ' ') s++;
+
+    if (*s == '-') {
+        sign = -1;
+        s++;
+    } else if (*s == '+') {
+        s++;
+    }
+
+    while (*s >= '0' && *s <= '9') {
+        res = res * 10 + (*s - '0');
+        s++;
+    }
+
+    return sign * res;
 }
 
 int strcmp(char* s1, char* s2){
-	if(strlen(s1) != strlen(s2)) return 0;
+	if(strlen(s1) != strlen(s2)) return 1;
 	int i = strlen(s1);
-	while(i--) if (s1[i] != s2[i]) return 0;
-	return 1;
+	while(i--) if (s1[i] != s2[i]) return 1;
+	return 0;
 }
 
-char* strdup(const char* s) {
-    int len = strlen(s) + 1;
-    char* dst = (char*)allocate(len);
-    if (!dst) return 0;
-    mem_cpy(dst, s, len);
-    return dst;
-}
 int isspace(char c) {
     return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f' || c == '\v';
 }

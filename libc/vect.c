@@ -7,10 +7,10 @@ int size(void** arr){
 }
 
 void init_vect(Vect* v, int element_size){
-    v->e_size = element_size;
-    v->cappacity = 1;
+    v->e_size = sizeof(void*);
+    v->cappacity = 2;
     v->size = 0;
-    v->arr = allocate(v->e_size);
+    v->arr = allocate(v->cappacity * v->e_size);
 }
 
 void vect_add_elem(Vect* v, void* elem){
@@ -22,18 +22,18 @@ void vect_add_elem(Vect* v, void* elem){
 
 
 void resize(Vect* v){
-    /*copy*/
-    void** old_arr = allocate(v->size * v->e_size);
-    mem_cpy(old_arr, v->arr, v->size);
-    
+    int new_cappacity = v->cappacity * 2;
+    void** new_arr = (void**)allocate(new_cappacity * sizeof(void*));
+    mem_cpy(new_arr, v->arr, v->size * sizeof(void*)); 
     release(v->arr);
-    v->cappacity *= 2;
-    v->arr = allocate(v->e_size * v->cappacity);
-    mem_cpy(v->arr, old_arr, v->size);
-    release(old_arr);
+    v->arr = new_arr;
+    v->cappacity = new_cappacity;
 }
 
 void delete_vect(Vect* v){
+    for (int i = 0; i < v->size; ++i) {
+        if (v->arr[i]) release(v->arr[i]);
+    }
     release(v->arr);
     v->cappacity = 0;
     v->size = 0;
