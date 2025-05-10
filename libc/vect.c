@@ -2,10 +2,6 @@
 
 void resize(Vect* v);
 
-int size(void** arr){
-    return (int)sizeof(arr)/sizeof(*arr[0]);
-}
-
 void init_vect(Vect* v, int element_size){
     v->e_size = sizeof(void*);
     v->cappacity = 2;

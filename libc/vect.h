@@ -3,8 +3,6 @@
 #include "alloc.h"
 #include "memory.h"
 
-int size(void** arr);
-
 typedef struct{
     int cappacity;
     int size;

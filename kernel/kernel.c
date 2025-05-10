@@ -35,7 +35,7 @@ void exec(char* cmd){
 		}
 		//hb
 		else if(!strcmp(cmd, "HONORBOARD")){
-			for(int i = 0; i < size((void**)hb_list); ++i){
+			for(int i = 0; i < sizeof(hb_list)/sizeof(hb_list[0]); ++i){
 				krnl_print("\n");
 				krnl_print_at(hb_list[i], -1, -1, i+2);
 			}
