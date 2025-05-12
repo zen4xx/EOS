@@ -15,8 +15,7 @@ void reverse(char* s) {
     }
 }
 
-char* itoa(int n){
-	char* str;
+void itoa(int n, char* str){
 	int i, sign;
 	if((sign = n) < 0) n = -n;
 	i = 0;
@@ -26,10 +25,7 @@ char* itoa(int n){
 
 	if(sign < 0) str[i++] = '-';
 	str[i] = '\0';
-
     reverse(str);
-
-	return str;
 }
 
 int atoi(char* s) {

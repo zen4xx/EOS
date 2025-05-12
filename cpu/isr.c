@@ -110,7 +110,7 @@ char *exception_messages[] = {
 
 void isr_handler(registers_t reg) {
     char* s;
-    s = itoa(reg.int_no);
+    itoa(reg.int_no, s);
     krnl_print(s);
     krnl_print(": ");
     krnl_print(exception_messages[reg.int_no]);

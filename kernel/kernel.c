@@ -49,29 +49,31 @@ void exec(char* cmd){
 			int a = atoi(get_vect(&cmds)[1]);
 			int b = atoi(get_vect(&cmds)[3]);
 			char* sign =  get_vect(&cmds)[2];
-
+			char* res;
+			res[0] = '\0';
 			krnl_print("\n");
 			if(!strcmp(sign, "PLUS")){
-				krnl_print_at(itoa(a + b), -1, -1, COMBINE(VGA_LIGHTGREEN, VGA_BLACK));
+				itoa((a+b), res);
 			}
 			else if(!strcmp(sign, "MINUS")){
-				krnl_print_at(itoa(a - b), -1, -1, COMBINE(VGA_LIGHTGREEN, VGA_BLACK));
+				itoa((a-b), res);
 			}
 			else if(!strcmp(sign, "MULT")){
-				krnl_print_at(itoa(a * b), -1, -1, COMBINE(VGA_LIGHTGREEN, VGA_BLACK));
+				itoa((a*b), res);
 			}
 			else if(!strcmp(sign, "DIV")){
-				krnl_print_at(itoa(a / b), -1, -1, COMBINE(VGA_LIGHTGREEN, VGA_BLACK));
+				itoa((a/b), res);
 			}
 			else {
 				krnl_print("Usage: CALC <num1> <OP> <num2>");
 			}
+			if(strlen(res)) krnl_print_at(res, -1, -1, COMBINE(VGA_LIGHTGREEN, VGA_BLACK));
 		}
 
 		else if(!strcmp(get_vect(&cmds)[0], "ECHO")){
 			krnl_print("\n");
 			for(int i = 1; i < get_vect_size(&cmds); ++i){
-				krnl_print(get_vect(&cmds)[i]);
+				krnl_print_at(get_vect(&cmds)[i], -1, -1, COMBINE(VGA_VIOLET, VGA_BLACK));
 				krnl_print(" ");
 			}
 		}
@@ -80,12 +82,11 @@ void exec(char* cmd){
 			krnl_print_at("\nCommand unrecognized\n", -1, -1, COMBINE(VGA_RED, VGA_BLACK));
 			krnl_print("Type HELP to list all commands");
 		}
-		//cleenup	
 		for (int i = 0; i < get_vect_size(&cmds); ++i) {
 			char** word = (char**)get_vect(&cmds)[i];
 			if (word && *word) release(*word);
 		}
-		delete_vect(&cmds);
+		clear_vect(&cmds);
 	}
 }
 

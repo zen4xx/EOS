@@ -3,9 +3,8 @@
 
 int strlen(char str[]);
 void reverse(char str[]);
-char* itoa(int);
+void itoa(int, char* str);
 int strcmp(char s1[], char s2[]);
-char* strdup(const char* s);
 void backspace(char s[]);
 void append(char s1[], char c);
 void append_str(char s1[], char s2[]);

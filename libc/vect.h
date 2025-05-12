@@ -15,5 +15,6 @@ void vect_add_elem(Vect* v, void* elem);
 void delete_vect(Vect* v);
 void** get_vect(const Vect* v);
 int get_vect_size(const Vect* v);
+void clear_vect(Vect* v);
 
 #endif

@@ -43,3 +43,11 @@ void** get_vect(const Vect* v) {
 int get_vect_size(const Vect* v){
     return v->size;
 }
+
+void clear_vect(Vect* v){
+    for (int i = 0; i < v->size; ++i) {
+        if (v->arr[i]) release(v->arr[i]);
+        v->arr[i] = 0;
+    }
+    v->size = 0;
+}
