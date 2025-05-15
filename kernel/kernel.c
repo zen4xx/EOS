@@ -62,7 +62,8 @@ void exec(char* cmd){
 				itoa((a*b), res);
 			}
 			else if(strcmp(sign, "DIV") == 0){
-				itoa((a/b), res);
+				if(b!=0) itoa((a/b), res);
+				else krnl_print_at("ERR", -1, -1, COMBINE(VGA_RED, VGA_BLACK));
 			}
 			else {
 				krnl_print("Usage: CALC <num1> <OP> <num2>");

@@ -1,8 +1,9 @@
 #include "alloc.h"
-#include  "../cpu/types.h"
 
 #define ALLOCATOR_PAGE_SIZE 4096
 #define NULL 0
+#define ALIGNMENT 8
+#define ALIGN(size) (((size) + ALIGNMENT - 1) & ~(ALIGNMENT - 1))
 
 typedef struct Block{
     int is_free;
@@ -65,45 +66,58 @@ void init_alloc(){
     is_init = 1;
 }
 
-void* allocate(int size){
-    if(!is_init) init_alloc();
-    int total_size = sizeof(Block) + size + (ALLOCATOR_PAGE_SIZE - 1);
-    total_size &= ~(ALLOCATOR_PAGE_SIZE-1);
-    Block* curr = find_free_block(total_size);
-    if(!curr){
+void* allocate(u32 size) {
+    if (!is_init) init_alloc();
+
+    const u32 aligned_size = ALIGN(sizeof(Block) + size);
+    Block* curr = find_free_block(aligned_size);
+
+    if (!curr) {
         curr = (Block*)allocate_page();
+        if (!curr) return NULL;
+
         curr->size = ALLOCATOR_PAGE_SIZE;
         curr->is_free = 0;
         curr->prev = curr->next = NULL;
+        curr->size = aligned_size;
     }
-    if(curr->size > total_size){
-        Block* new_block = (Block*)((char*)curr + total_size);
-        new_block->size = curr->size - total_size - sizeof(Block);
+
+    if (curr->size > aligned_size + sizeof(Block)) {
+        Block* new_block = (Block*)((char*)curr + aligned_size);
+        new_block->size = curr->size - aligned_size - sizeof(Block);
         new_block->is_free = 1;
         add_to_free_list(new_block);
+        curr->size = aligned_size;
     }
+
     curr->is_free = 0;
-    return(void*)(curr + 1);
+    return (void*)(curr + 1);
 }
 
+void release(void* ptr) {
+    if (!ptr) return;
 
-void release(void* ptr){
-    if(!ptr) return;
     Block* block = (Block*)((char*)ptr - sizeof(Block));
     block->is_free = 1;
 
-    if(block->prev && block->prev->is_free){
-        Block* prev_block = block->prev;
-        prev_block->size += block->size + sizeof(Block);
-        if(block->next) block->next->prev = prev_block;
-        block = prev_block;
+    if (block->next && block->next->is_free) {
+        Block* next = block->next;
+        block->size += sizeof(Block) + next->size;
+        block->next = next->next;
+        if (next->next) {
+            next->next->prev = block;
+        }
     }
-    if(block->next && block->next->is_free){
-        Block* next_block = block->next;
-        block->size += next_block->size + sizeof(Block);
-        block->next = next_block->next;
-        if(next_block->next) next_block->next->prev = block;
-        block = next_block;
+
+    if (block->prev && block->prev->is_free) {
+        Block* prev = block->prev;
+        prev->size += sizeof(Block) + block->size;
+        prev->next = block->next;
+        if (block->next) {
+            block->next->prev = prev;
+        }
+        block = prev;
     }
+
     add_to_free_list(block);
 }
