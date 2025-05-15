@@ -20,12 +20,12 @@ void exec(char* cmd){
 		
 		split_cmd(&cmds, cmd);
 		//stop
-		if(!strcmp(cmd, "STOP")){
+		if(strcmp(cmd, "STOP") == 0){
 			krnl_print("\nstoping the cpu. Bye!\n");
 			asm volatile("hlt");
 		}
 		//help
-		else if(!strcmp(cmd, "HELP")){
+		else if(strcmp(cmd, "HELP") == 0){
 			print("\nType ");krnl_print_at("STOP", -1, -1, COMBINE(VGA_YELLOW, VGA_BLACK));print(" to halt the cpu");
 			print("\nType ");krnl_print_at("HELP", -1, -1, COMBINE(VGA_YELLOW, VGA_BLACK));print(" to print this message");
 			print("\nType ");krnl_print_at("HONORBOARD", -1, -1, COMBINE(VGA_YELLOW, VGA_BLACK));print(" to print honor board");
@@ -34,34 +34,34 @@ void exec(char* cmd){
 			print("\nType ");krnl_print_at("ECHO", -1, -1, COMBINE(VGA_YELLOW, VGA_BLACK));print(" to print some thing");
 		}
 		//hb
-		else if(!strcmp(cmd, "HONORBOARD")){
+		else if(strcmp(cmd, "HONORBOARD") == 0){
 			for(int i = 0; i < sizeof(hb_list)/sizeof(hb_list[0]); ++i){
 				krnl_print("\n");
 				krnl_print_at(hb_list[i], -1, -1, i+2);
 			}
 		}
 		//clear
-		else if(!strcmp(cmd, "CLEAR")){
+		else if(strcmp(cmd, "CLEAR") == 0){
 			clear();
 		}
 		//calc
-		else if(!strcmp(get_vect(&cmds)[0], "CALC")){
+		else if(strcmp(get_vect(&cmds)[0], "CALC") == 0){
 			int a = atoi(get_vect(&cmds)[1]);
 			int b = atoi(get_vect(&cmds)[3]);
 			char* sign =  get_vect(&cmds)[2];
 			char* res;
 			res[0] = '\0';
 			krnl_print("\n");
-			if(!strcmp(sign, "PLUS")){
+			if(strcmp(sign, "PLUS") == 0){
 				itoa((a+b), res);
 			}
-			else if(!strcmp(sign, "MINUS")){
+			else if(strcmp(sign, "MINUS") == 0){
 				itoa((a-b), res);
 			}
-			else if(!strcmp(sign, "MULT")){
+			else if(strcmp(sign, "MULT") == 0){
 				itoa((a*b), res);
 			}
-			else if(!strcmp(sign, "DIV")){
+			else if(strcmp(sign, "DIV") == 0){
 				itoa((a/b), res);
 			}
 			else {
@@ -70,7 +70,7 @@ void exec(char* cmd){
 			if(strlen(res)) krnl_print_at(res, -1, -1, COMBINE(VGA_LIGHTGREEN, VGA_BLACK));
 		}
 
-		else if(!strcmp(get_vect(&cmds)[0], "ECHO")){
+		else if(strcmp(get_vect(&cmds)[0], "ECHO") == 0){
 			krnl_print("\n");
 			for(int i = 1; i < get_vect_size(&cmds); ++i){
 				krnl_print_at(get_vect(&cmds)[i], -1, -1, COMBINE(VGA_VIOLET, VGA_BLACK));

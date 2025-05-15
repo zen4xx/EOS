@@ -50,10 +50,11 @@ int atoi(char* s) {
 }
 
 int strcmp(char* s1, char* s2){
-	if(strlen(s1) != strlen(s2)) return 1;
-	int i = strlen(s1);
-	while(i--) if (s1[i] != s2[i]) return 1;
-	return 0;
+	while (*s1 && (*s1 == *s2)) {
+        s1++;
+        s2++;
+    }
+    return *(unsigned char*)s1 - *(unsigned char*)s2;
 }
 
 int isspace(char c) {
