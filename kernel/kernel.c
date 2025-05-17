@@ -1,9 +1,15 @@
 #include "kernel.h"
 
+Vect cmds;
+
 void kernel_main() {
+
 	clear();
+	init_vect(&cmds, sizeof(char*));
+
 	isr_install();
 	irq_install();
+
 	krnl_print("W3lC0M3 T0 ");
 	krnl_print_at("EOS\n", -1, -1, COMBINE(VGA_MAGENTA, VGA_BLACK));
 }
@@ -14,10 +20,6 @@ void split_cmd(Vect* vec, char* cmd);
 
 void exec(char* cmd){
 	if(cmd){
-
-		Vect cmds;
-		init_vect(&cmds, sizeof(char*));
-		
 		split_cmd(&cmds, cmd);
 		//stop
 		if(strcmp(cmd, "STOP") == 0){
