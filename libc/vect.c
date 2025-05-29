@@ -2,7 +2,7 @@
 
 void resize(Vect* v);
 
-void init_vect(Vect* v, int element_size){
+void init_vect(Vect* v){
     v->e_size = sizeof(void*);
     v->cappacity = 2;
     v->size = 0;
@@ -27,10 +27,8 @@ void resize(Vect* v){
 }
 
 void delete_vect(Vect* v){
-    for (int i = 0; i < v->size; ++i) {
-        if (v->arr[i]) release(v->arr[i]);
-    }
-    release(v->arr);
+    if(v->arr)
+        release(v->arr);
     v->cappacity = 0;
     v->size = 0;
     v->e_size = 0;
@@ -45,9 +43,9 @@ int get_vect_size(const Vect* v){
 }
 
 void clear_vect(Vect* v){
-    for (int i = 0; i < v->size; ++i) {
-        if (v->arr[i]) release(v->arr[i]);
-        v->arr[i] = 0;
-    }
+    if(v->arr)
+        release(v->arr);
+    v->cappacity = 2;
     v->size = 0;
+    v->arr = allocate(v->cappacity * v->e_size);
 }

@@ -24,6 +24,7 @@
 #define VGA_YELLOW e
 #define VGA_WHITE f
 
+#define INPUT_BUF_SIZE 256
 
 #define COMBINE_impl(a, b) 0x##b##a
 //connects fg and bg

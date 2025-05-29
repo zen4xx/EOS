@@ -2,6 +2,7 @@
 #define VECT_H
 #include "alloc.h"
 #include "memory.h"
+#include "stdio.h"
 
 typedef struct{
     int cappacity;
@@ -10,7 +11,7 @@ typedef struct{
     void** arr;
 }Vect;
 
-void init_vect(Vect* v, int element_size);
+void init_vect(Vect* v);
 void vect_add_elem(Vect* v, void* elem);
 void delete_vect(Vect* v);
 void** get_vect(const Vect* v);

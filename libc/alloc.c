@@ -17,6 +17,7 @@ static Block* free_list_head = NULL;
 void* page_ptr;
 u8 is_init = 0;
 void* free_mem_addr = (void*)0x10000;
+u32 total_allocated = 0;
 
 void* allocate_page(){
     free_mem_addr += ALLOCATOR_PAGE_SIZE;
@@ -69,19 +70,20 @@ void init_alloc(){
 void* allocate(u32 size) {
     if (!is_init) init_alloc();
 
+    
     const u32 aligned_size = ALIGN(sizeof(Block) + size);
     Block* curr = find_free_block(aligned_size);
-
+    
     if (!curr) {
         curr = (Block*)allocate_page();
         if (!curr) return NULL;
-
+        
         curr->size = ALLOCATOR_PAGE_SIZE;
         curr->is_free = 0;
         curr->prev = curr->next = NULL;
         curr->size = aligned_size;
     }
-
+    
     if (curr->size > aligned_size + sizeof(Block)) {
         Block* new_block = (Block*)((char*)curr + aligned_size);
         new_block->size = curr->size - aligned_size - sizeof(Block);
@@ -89,7 +91,8 @@ void* allocate(u32 size) {
         add_to_free_list(new_block);
         curr->size = aligned_size;
     }
-
+    
+    total_allocated += curr->size;
     curr->is_free = 0;
     return (void*)(curr + 1);
 }
@@ -98,8 +101,15 @@ void release(void* ptr) {
     if (!ptr) return;
 
     Block* block = (Block*)((char*)ptr - sizeof(Block));
-    block->is_free = 1;
 
+    if (block->is_free) {
+        err("Double free detected!\n");
+        return;
+    }
+
+    total_allocated -= block->size;
+    block->is_free = 1;
+    
     if (block->next && block->next->is_free) {
         Block* next = block->next;
         block->size += sizeof(Block) + next->size;
@@ -108,7 +118,7 @@ void release(void* ptr) {
             next->next->prev = block;
         }
     }
-
+    
     if (block->prev && block->prev->is_free) {
         Block* prev = block->prev;
         prev->size += sizeof(Block) + block->size;
@@ -118,6 +128,10 @@ void release(void* ptr) {
         }
         block = prev;
     }
-
+    
     add_to_free_list(block);
+}
+
+u32 get_allocated_size(){
+    return total_allocated;
 }

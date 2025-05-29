@@ -109,7 +109,7 @@ char *exception_messages[] = {
 };
 
 void isr_handler(registers_t reg) {
-    char* s;
+    char s[16];
     itoa(reg.int_no, s);
     krnl_print(s);
     krnl_print(": ");
