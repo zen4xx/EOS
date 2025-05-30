@@ -73,16 +73,16 @@ void exec(char* cmd) {
             char res[32] = {0};
             krnl_print("\n");
 
-            if (strcmp(sign, "plus") == 0) {
+            if (strcmp(sign, "+") == 0) {
                 itoa(a + b, res);
             }
-            else if (strcmp(sign, "minus") == 0) {
+            else if (strcmp(sign, "-") == 0) {
                 itoa(a - b, res);
             }
-            else if (strcmp(sign, "mult") == 0) {
+            else if (strcmp(sign, "*") == 0) {
                 itoa(a * b, res);
             }
-            else if (strcmp(sign, "div") == 0) {
+            else if (strcmp(sign, "/") == 0) {
                 if (b != 0) {
                     itoa(a / b, res);
                 } else {
@@ -90,7 +90,7 @@ void exec(char* cmd) {
                 }
             }
             else {
-                krnl_print("Unknown operator");
+                krnl_print_at("Calc: unknown operator", -1, -1, COMBINE(VGA_ORANGE, VGA_BLACK));
             }
 
             if (res[0] != '\0') {
@@ -130,23 +130,22 @@ void split_cmd(Vect* vec, char* cmd) {
     while (*start != '\0') {
         while (*start != '\0' && isspace((unsigned char)*start)) ++start;
         if (*start == '\0') break;
-
+        
         char* end = start;
         while (*end != '\0' && !isspace((unsigned char)*end)) ++end;
-
+        
         int word_len = end - start;
         char* word = allocate(word_len + 1);
-
+        
         if (!word) {
             krnl_print("Allocation failed for word\n");
             start = end;
             continue;
         }
-
+        
         mem_cpy(word, start, word_len);
         word[word_len] = '\0'; 
         vect_add_elem(vec, word);
-
         start = end;
     }
 

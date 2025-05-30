@@ -10,7 +10,7 @@ void init_vect(Vect* v){
 }
 
 void vect_add_elem(Vect* v, void* elem){
-    if(v->size == v->cappacity){
+    if(v->size >= v->cappacity){
         resize(v);
     }
     v->arr[v->size++] = elem;

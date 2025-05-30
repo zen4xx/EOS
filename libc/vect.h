@@ -2,7 +2,7 @@
 #define VECT_H
 #include "alloc.h"
 #include "memory.h"
-#include "stdio.h"
+#include "libc.h"
 
 typedef struct{
     int cappacity;
