@@ -6,7 +6,7 @@
 
 void* allocate(u32 size);
 void release(void* ptr);
-u32 get_allocated_size();
+u32 get_total_allocated_size();
 
 typedef struct Block{
     int is_free;

@@ -52,6 +52,10 @@ void exec(char* cmd) {
         krnl_print("\nType ");
         krnl_print_at("echo", -1, -1, COMBINE(VGA_YELLOW, VGA_BLACK));
         krnl_print(" to print something");
+
+        krnl_print("\nType ");
+        krnl_print_at("meminfo", -1, -1, COMBINE(VGA_YELLOW, VGA_BLACK));
+        krnl_print(" to print total allocated size");
     }
     else if (strcmp(first_word, "honorboard") == 0) {
         for (int i = 0; i < sizeof(hb_list)/sizeof(hb_list[0]); ++i) {
@@ -105,6 +109,14 @@ void exec(char* cmd) {
             krnl_print(" ");
         }
     }
+
+    else if(strcmp(first_word, "meminfo") == 0){
+        krnl_print("\n");
+        char str[32];
+        itoa(get_total_allocated_size(), str);
+        krnl_print(str);
+    }
+
     else {
 		krnl_print_at("\nCommand ", -1, -1, COMBINE(VGA_RED, VGA_BLACK));
 		krnl_print_at("\"", -1, -1, COMBINE(VGA_RED, VGA_BLACK));

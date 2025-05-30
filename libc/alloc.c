@@ -105,7 +105,7 @@ void* allocate(u32 size) {
             if (curr->size > needed_size + MIN_BLOCK_SIZE) {
                 split_block(curr, needed_size);
             }
-
+            total_allocated += curr->size;
             return (void*)(curr + 1); 
         }
         curr = curr->next;
@@ -123,7 +123,7 @@ void release(void* ptr) {
         err("Double free detected!\n");
         return;
     }
-
+    total_allocated -= block->size;
     block->is_free = 1;
 
     if (block->next && block->next->is_free) {
@@ -135,4 +135,8 @@ void release(void* ptr) {
     }
 
     add_to_free_list(block);
+}
+
+u32 get_total_allocated_size(){
+    return total_allocated;
 }
