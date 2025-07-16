@@ -56,6 +56,14 @@ void exec(char* cmd) {
         krnl_print("\nType ");
         krnl_print_at("meminfo", -1, -1, COMBINE(VGA_YELLOW, VGA_BLACK));
         krnl_print(" to print total allocated size");
+
+        krnl_print("\nType ");
+        krnl_print_at("animegirl", -1, -1, COMBINE(VGA_YELLOW, VGA_BLACK));
+        krnl_print(" to talk with anime waifu");
+
+        krnl_print("\nType ");
+        krnl_print_at("blackjack", -1, -1, COMBINE(VGA_YELLOW, VGA_BLACK));
+        krnl_print(" to play blackjak");
     }
     else if (strcmp(first_word, "honorboard") == 0) {
         for (int i = 0; i < sizeof(hb_list)/sizeof(hb_list[0]); ++i) {
@@ -115,6 +123,14 @@ void exec(char* cmd) {
         char str[32];
         itoa(get_total_allocated_size(), str);
         krnl_print(str);
+    }
+
+    else if(strcmp(first_word, "animegirl") == 0 ){
+        krnl_print("\nnah i won't talk to u, u are too nerdy");
+    }
+
+    else if(strcmp(first_word, "blackjak") == 0 ){
+        krnl_print("\nto play this game u need more than one player (u dont have friends)");
     }
 
     else {
