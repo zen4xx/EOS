@@ -63,7 +63,7 @@ void exec(char* cmd) {
 
         krnl_print("\nType ");
         krnl_print_at("blackjack", -1, -1, COMBINE(VGA_YELLOW, VGA_BLACK));
-        krnl_print(" to play blackjak");
+        krnl_print(" to play blackjack");
     }
     else if (strcmp(first_word, "honorboard") == 0) {
         for (int i = 0; i < sizeof(hb_list)/sizeof(hb_list[0]); ++i) {
@@ -126,10 +126,10 @@ void exec(char* cmd) {
     }
 
     else if(strcmp(first_word, "animegirl") == 0 ){
-        krnl_print("\nnah i won't talk to u, u are too nerdy");
+        krnl_print("\nnah i won't talk to u");
     }
 
-    else if(strcmp(first_word, "blackjak") == 0 ){
+    else if(strcmp(first_word, "blackjack") == 0 ){
         krnl_print("\nto play this game u need more than one player (u dont have friends)");
     }
 
