@@ -12,7 +12,7 @@ void kernel_main() {
 	krnl_print(">");
 }
 
-static const char* hb_list[] = {"OS developer,malware???:zen4x", "Site developer,malware???:Andrew24-coop", "Fan fiction author:Yan", "Fan fiction author:oslfnkwenfm", "Fan fiction author:Kilka"};
+static const char* hb_list[] = {"OS developer,malware???:zen4x", "Site developer,malware???:4rch1nx", "Fan fiction author:Yan", "Fan fiction author:oslfnkwenfm", "Fan fiction author:Kilka"};
 
 void split_cmd(Vect* vec, char* cmd);
 
