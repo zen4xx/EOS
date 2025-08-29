@@ -159,7 +159,6 @@ void split_cmd(Vect* vec, char* cmd) {
     if (!vec || !cmd) return;
 
     char* start = cmd;
-	int i = 0;
     while (*start != '\0') {
         while (*start != '\0' && isspace((unsigned char)*start)) ++start;
         if (*start == '\0') break;
