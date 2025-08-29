@@ -43,6 +43,7 @@ static void keyboard_callback(registers_t regs) {
             char str[2] = { ch, '\0' };
             keyboard_input(str);
         }
+        raw_keyboard_input(ch);
     }
 } 
 

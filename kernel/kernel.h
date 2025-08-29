@@ -32,4 +32,6 @@
 
 void exec(char* cmd);
 
+extern char _current_char;
+
 #endif

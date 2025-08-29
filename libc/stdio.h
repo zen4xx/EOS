@@ -5,5 +5,6 @@
 
 void print(void* msg);
 //void printf();
+char getc();
 
 #endif

@@ -1,4 +1,5 @@
 #include "kernel.h"
+char _current_char = '\0';
 
 void kernel_main() {
 
@@ -10,6 +11,10 @@ void kernel_main() {
 	krnl_print("W3lC0M3 T0 ");
 	krnl_print_at("EOS\n", -1, -1, COMBINE(VGA_MAGENTA, VGA_BLACK));
 	krnl_print(">");
+
+    while(1){
+        _current_char = '\0';
+    }
 }
 
 static const char* hb_list[] = {"OS developer,malware???:zen4x", "Site developer,malware???:4rch1nx", "Fan fiction author:Yan", "Fan fiction author:oslfnkwenfm", "Fan fiction author:Kilka"};

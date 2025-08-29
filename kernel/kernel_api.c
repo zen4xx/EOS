@@ -21,3 +21,5 @@ void keyboard_input(char c[]){
         krnl_print(c);
     }
 }
+
+void raw_keyboard_input(char c) { _current_char = c; };
