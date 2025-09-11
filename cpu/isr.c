@@ -36,6 +36,7 @@ void isr_install() {
     set_idt_gate(29, (u32)isr29);
     set_idt_gate(30, (u32)isr30);
     set_idt_gate(31, (u32)isr31);
+    set_idt_gate(0x80, (u32)isr80);
 
     // remap the PIC
     port_byte_out(0x20, 0x11);
@@ -98,6 +99,7 @@ char *exception_messages[] = {
     "Reserved",
     "Reserved",
 
+    "Reserved",
     "Reserved",
     "Reserved",
     "Reserved",

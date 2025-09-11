@@ -1,6 +1,8 @@
 [extern isr_handler]
 [extern irq_handler]
 
+[extern syscall_handler]
+
 isr_common_stub:
     ; save CPU state
 	pusha ; pushes edi,esi,ebp,esp,ebx,edx,ecx,eax
@@ -76,6 +78,7 @@ global isr28
 global isr29
 global isr30
 global isr31
+global isr80
 ; irq
 global irq0
 global irq1
@@ -311,6 +314,36 @@ isr31:
     push byte 0
     push byte 31
     jmp isr_common_stub
+
+isr80:
+    cli 
+    push edi
+    push esi
+    push ebp
+    push ebx
+    push edx
+    push ecx
+    
+    ; pass 6 arguments to stack by cdecl
+    push ebp 
+    push edi
+    push esi
+    push edx
+    push ecx
+    push ebx
+    push eax
+
+    call syscall_handler
+    add esp, 28 ; delete 7 * 4 bytes
+    
+    pop ecx
+    pop edx 
+    pop ebx
+    pop ebp
+    pop esi
+    pop edi
+
+    iret 
 
 ; irqs
 irq0:

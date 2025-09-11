@@ -12,9 +12,13 @@ void kernel_main() {
 	krnl_print_at("EOS\n", -1, -1, COMBINE(VGA_MAGENTA, VGA_BLACK));
 	krnl_print(">");
 
+    __asm__ __volatile__ ("int $0x80");
+
     while(1){
         _current_char = '\0';
     }
+    
+
 }
 
 static const char* hb_list[] = {"OS developer,malware???:zen4x", "Site developer,malware???:4rch1nx", "Fan fiction author:Yan", "Fan fiction author:oslfnkwenfm", "Fan fiction author:Kilka"};
