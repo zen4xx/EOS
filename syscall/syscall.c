@@ -2,6 +2,8 @@
 #include "../drivers/screen.h"
 #include "../drivers/keyboard.h"
 #include "../libc/alloc.h"
+#include "../libc/string.h"
+#include "../kernel/kernel_api.h"
 #include "syscall.h"
 
 u32 syscall_handler(
@@ -14,22 +16,19 @@ u32 syscall_handler(
     u32 a6   // EBP
 )
 {
-    krnl_print("syscall\n");
-    /*
     switch (num)
     {
-    case SYSCALL_PRINT_CHAR:
-        krnl_print((char*)a1);
-        return 0;
     case SYSCALL_PRINT_STRING:
         krnl_print((char*)a1);
         return 0;
+    case SYSCALL_GETCHAR:
+        while(_current_char == '\0'); 
+        return (u32)_current_char;
 
     default:
         return ((u32)-1);
 
     }   
-    */
 
     return 0;
 }

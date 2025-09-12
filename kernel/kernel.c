@@ -1,6 +1,8 @@
 #include "kernel.h"
 char _current_char = '\0';
 
+#include "../libc/stdio.h"
+
 void kernel_main() {
 
 	clear();
@@ -11,8 +13,6 @@ void kernel_main() {
 	krnl_print("W3lC0M3 T0 ");
 	krnl_print_at("EOS\n", -1, -1, COMBINE(VGA_MAGENTA, VGA_BLACK));
 	krnl_print(">");
-
-    __asm__ __volatile__ ("int $0x80");
 
     while(1){
         _current_char = '\0';

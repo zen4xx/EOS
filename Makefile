@@ -5,7 +5,7 @@ OBJ = ${C_SOURCES:.c=.o cpu/interrupts.o syscall/syscall.o}
 CC = i686-elf-gcc
 GDB = i686-elf-gdb
 LD = i686-elf-ld
-CFLAGS = -g -Wall
+CFLAGS = -g -Wall 
 
 os-image.bin: boot/boot.bin kernel.bin
 	cat $^ > os-image.bin

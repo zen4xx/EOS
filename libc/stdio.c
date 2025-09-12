@@ -1,11 +1,18 @@
 #include "stdio.h"
+#include "../syscall/syscall.h"
 
-void print(void* msg){
-    krnl_print((char*)msg);
+void print(char* msg){
+    __asm__ (
+        "movl %0, %%ebx" 
+        :                 
+        : "r" (msg) 
+        : "%ebx"          
+    );
+    __asm__ ("movl $1, %eax");
+    __asm__ __volatile__ ("int $0x80"); //syscall
 }
 
 char getc()
 {
-    while(_current_char == '\0'); 
-    return _current_char;
+    return '0'; //later
 }
