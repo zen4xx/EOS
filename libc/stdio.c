@@ -1,5 +1,4 @@
 #include "stdio.h"
-#include "../syscall/syscall.h"
 
 void print(char* msg){
     __asm__ (
@@ -21,7 +20,7 @@ char getc() {
         "int $0x80;"      
         "movb %%al, %0;"   
         : "=r" (c)          
-        : "i" (30) 
+        : "i" (30)  // syscall num
         : "%eax" 
     );
 

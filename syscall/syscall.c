@@ -25,6 +25,17 @@ u32 syscall_handler(
         asm volatile("sti"); //enable interuption
         while(_current_char == '\0'); 
         return _current_char;
+    case SYSCALL_MALLOC:
+        return (u32)allocate(a1);
+    case SYSCALL_FREE:
+        release((void*)a1);
+        return 0;
+    case SYSCALL_REALLOC:
+        release((void*)a1);
+        return (u32)allocate(a2);
+    case SYSCALL_CLEAR:
+        clear();
+        return 0;
 
     default:
         return ((u32)-1);

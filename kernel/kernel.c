@@ -1,7 +1,8 @@
 #include "kernel.h"
-char _current_char = '\0';
-
+#include "../libc/stdlib.h"
 #include "../libc/stdio.h"
+
+char _current_char = '\0';
 
 void kernel_main() {
 
@@ -171,10 +172,10 @@ void split_cmd(Vect* vec, char* cmd) {
         while (*end != '\0' && !isspace((unsigned char)*end)) ++end;
         
         int word_len = end - start;
-        char* word = allocate(word_len + 1);
+        char* word = malloc(word_len + 1);
         
         if (!word) {
-            krnl_print("Allocation failed for word\n");
+            print("Allocation failed for word\n");
             start = end;
             continue;
         }
@@ -186,6 +187,6 @@ void split_cmd(Vect* vec, char* cmd) {
     }
 
     if (get_vect_size(vec) == 0) {
-        krnl_print("Warning: No words were parsed.\n");
+        print("Warning: No words were parsed.\n");
     }
 }

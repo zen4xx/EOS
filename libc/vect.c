@@ -1,4 +1,5 @@
 #include "vect.h"
+#include "stdlib.h"
 
 void resize(Vect* v);
 
@@ -6,7 +7,7 @@ void init_vect(Vect* v){
     v->e_size = sizeof(void*);
     v->cappacity = 2;
     v->size = 0;
-    v->arr = allocate(v->cappacity * v->e_size);
+    v->arr = malloc(v->cappacity * v->e_size);
 }
 
 void vect_add_elem(Vect* v, void* elem){
@@ -19,9 +20,9 @@ void vect_add_elem(Vect* v, void* elem){
 
 void resize(Vect* v){
     int new_cappacity = v->cappacity * 2;
-    void** new_arr = (void**)allocate(new_cappacity * sizeof(void*));
+    void** new_arr = (void**)malloc(new_cappacity * sizeof(void*));
     mem_cpy(new_arr, v->arr, v->size * sizeof(void*)); 
-    release(v->arr);
+    free(v->arr);
     v->arr = new_arr;
     v->cappacity = new_cappacity;
 }
@@ -47,5 +48,5 @@ void clear_vect(Vect* v){
         release(v->arr);
     v->cappacity = 2;
     v->size = 0;
-    v->arr = allocate(v->cappacity * v->e_size);
+    v->arr = malloc(v->cappacity * v->e_size);
 }
