@@ -12,7 +12,18 @@ void print(char* msg){
     __asm__ __volatile__ ("int $0x80"); //syscall
 }
 
-char getc()
-{
-    return '0'; //later
+
+char getc() {
+
+    char c;
+    __asm__ __volatile__ (
+        "movl %1, %%eax;"
+        "int $0x80;"      
+        "movb %%al, %0;"   
+        : "=r" (c)          
+        : "i" (30) 
+        : "%eax" 
+    );
+
+    return c; 
 }

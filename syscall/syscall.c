@@ -22,8 +22,9 @@ u32 syscall_handler(
         krnl_print((char*)a1);
         return 0;
     case SYSCALL_GETCHAR:
+        asm volatile("sti"); //enable interuption
         while(_current_char == '\0'); 
-        return (u32)_current_char;
+        return _current_char;
 
     default:
         return ((u32)-1);

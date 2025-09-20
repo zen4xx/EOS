@@ -3,7 +3,6 @@
 char input_msg[INPUT_BUF_SIZE] = "";
 
 void keyboard_input(char c[]){
-
     if(c[0] == '\n'){
         exec(input_msg);
         input_msg[0] = '\0';

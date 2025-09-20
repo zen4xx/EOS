@@ -14,7 +14,7 @@ void kernel_main() {
 	krnl_print_at("EOS\n", -1, -1, COMBINE(VGA_MAGENTA, VGA_BLACK));
 	krnl_print(">");
 
-    while(1){
+    while(1){ 
         _current_char = '\0';
     }
     
@@ -135,11 +135,11 @@ void exec(char* cmd) {
     }
 
     else if(strcmp(first_word, "animegirl") == 0 ){
-        krnl_print("\nnah i won't talk to u");
+        print("\nnah i won't talk to u");
     }
 
     else if(strcmp(first_word, "blackjack") == 0 ){
-        krnl_print("\nto play this game u need more than one player (u dont have friends)");
+        print("\nto play this game u need more than one player (u dont have friends)");
     }
 
     else {
