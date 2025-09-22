@@ -4,7 +4,6 @@
 #include "../drivers/screen.h"
 #include "../cpu/isr.h"
 #include "../cpu/timer.h"
-#include "../libc/libc.h"
 #include "../drivers/keyboard.h"
 
 #define VGA_BLACK 0

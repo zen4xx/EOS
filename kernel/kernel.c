@@ -1,6 +1,7 @@
 #include "kernel.h"
 #include "../libc/stdlib.h"
 #include "../libc/stdio.h"
+#include "../libc/vect.h"
 
 char _current_char = '\0';
 
