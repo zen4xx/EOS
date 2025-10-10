@@ -17,6 +17,22 @@ void* malloc(u32 size)
     return ptr; 
 }
 
+u32 malloc_info() 
+{
+    u32 res;
+
+    __asm__ __volatile__ (
+        "movl %1, %%eax;" 
+        "int $0x80;"    
+        "movl %%eax, %0;"
+        : "=r" (res)    
+        : "i" (13)  
+        : "%eax"   
+    );
+
+    return res; 
+}
+
 void free(void* ptr)
 {
     __asm__ __volatile__ (

@@ -33,6 +33,8 @@ u32 syscall_handler(
     case SYSCALL_REALLOC:
         release((void*)a1);
         return (u32)allocate(a2);
+    case SYSCALL_MALLOC_STATS:
+        return get_total_allocated_size();
     case SYSCALL_CLEAR:
         clear();
         return 0;

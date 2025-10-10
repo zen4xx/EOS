@@ -132,7 +132,7 @@ void exec(char* cmd) {
     else if(strcmp(first_word, "meminfo") == 0){
         krnl_print("\n");
         char str[32];
-        itoa(get_total_allocated_size(), str);
+        itoa(malloc_info(), str);
         krnl_print(str);
     }
 
