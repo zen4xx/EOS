@@ -36,50 +36,50 @@ void exec(char* cmd) {
     char* first_word = get_vect(&cmds)[0];
 
     if (strcmp(first_word, "stop") == 0) {
-        krnl_print("\nStopping the CPU. Bye!\n");
+        krnl_print("Stopping the CPU. Bye!\n");
         asm volatile("hlt");
     }
     else if (strcmp(first_word, "help") == 0) {
-        krnl_print("\nType ");
+        krnl_print("Type ");
         krnl_print_at("stop", -1, -1, COMBINE(VGA_YELLOW, VGA_BLACK));
-        krnl_print(" to halt the CPU");
+        krnl_print(" to halt the CPU\n");
 
-        krnl_print("\nType ");
+        krnl_print("Type ");
         krnl_print_at("help", -1, -1, COMBINE(VGA_YELLOW, VGA_BLACK));
-        krnl_print(" to print this message");
+        krnl_print(" to print this message\n");
 
-        krnl_print("\nType ");
+        krnl_print("Type ");
         krnl_print_at("honorboard", -1, -1, COMBINE(VGA_YELLOW, VGA_BLACK));
-        krnl_print(" to print honor board");
+        krnl_print(" to print honor board\n");
 
-        krnl_print("\nType ");
+        krnl_print("Type ");
         krnl_print_at("clear", -1, -1, COMBINE(VGA_YELLOW, VGA_BLACK));
-        krnl_print(" to clear the screen");
+        krnl_print(" to clear the screen\n");
 
-        krnl_print("\nType ");
+        krnl_print("Type ");
         krnl_print_at("calc", -1, -1, COMBINE(VGA_YELLOW, VGA_BLACK));
-        krnl_print(" to calculate two numbers");
+        krnl_print(" to calculate two numbers\n");
 
-        krnl_print("\nType ");
+        krnl_print("Type ");
         krnl_print_at("echo", -1, -1, COMBINE(VGA_YELLOW, VGA_BLACK));
-        krnl_print(" to print something");
+        krnl_print(" to print something\n");
 
-        krnl_print("\nType ");
+        krnl_print("Type ");
         krnl_print_at("meminfo", -1, -1, COMBINE(VGA_YELLOW, VGA_BLACK));
-        krnl_print(" to print total allocated size");
+        krnl_print(" to print total allocated size\n");
 
-        krnl_print("\nType ");
+        krnl_print("Type ");
         krnl_print_at("animegirl", -1, -1, COMBINE(VGA_YELLOW, VGA_BLACK));
-        krnl_print(" to talk with anime waifu");
+        krnl_print(" to talk with anime waifu\n");
 
-        krnl_print("\nType ");
+        krnl_print("Type ");
         krnl_print_at("blackjack", -1, -1, COMBINE(VGA_YELLOW, VGA_BLACK));
-        krnl_print(" to play blackjack");
+        krnl_print(" to play blackjack\n");
     }
     else if (strcmp(first_word, "honorboard") == 0) {
         for (int i = 0; i < sizeof(hb_list)/sizeof(hb_list[0]); ++i) {
-            krnl_print("\n");
             krnl_print_at(hb_list[i], -1, -1, i+2);
+            krnl_print("\n");
         }
     }
     else if (strcmp(first_word, "clear") == 0) {
@@ -94,8 +94,7 @@ void exec(char* cmd) {
             char* sign = get_vect(&cmds)[2];
 
             char res[32] = {0};
-            krnl_print("\n");
-
+            
             if (strcmp(sign, "+") == 0) {
                 itoa(a + b, res);
             }
@@ -115,38 +114,38 @@ void exec(char* cmd) {
             else {
                 krnl_print_at("Calc: unknown operator", -1, -1, COMBINE(VGA_ORANGE, VGA_BLACK));
             }
-
+            
             if (res[0] != '\0') {
                 krnl_print_at(res, -1, -1, COMBINE(VGA_LIGHTGREEN, VGA_BLACK));
             }
         }
+        krnl_print("\n");
     }
     else if (strcmp(first_word, "echo") == 0) {
-        krnl_print("\n");
         for (int i = 1; i < get_vect_size(&cmds); ++i) {
             krnl_print_at(get_vect(&cmds)[i], -1, -1, COMBINE(VGA_VIOLET, VGA_BLACK));
             krnl_print(" ");
         }
+        krnl_print("\n");
     }
 
     else if(strcmp(first_word, "meminfo") == 0){
-        krnl_print("\n");
         char str[32];
         itoa(malloc_info(), str);
         print(str);
-        print(" bytes");
+        krnl_print(" bytes\n");
     }
 
     else if(strcmp(first_word, "animegirl") == 0 ){
-        print("\nnah i won't talk to u");
+        print("nah i won't talk to u\n");
     }
 
     else if(strcmp(first_word, "blackjack") == 0 ){
-        print("\nto play this game u need more than one player (u dont have friends)");
+        print("\nto play this game u need more than one player (u dont have friends)\n");
     }
 
     else {
-		krnl_print_at("\nCommand ", -1, -1, COMBINE(VGA_RED, VGA_BLACK));
+		krnl_print_at("Command ", -1, -1, COMBINE(VGA_RED, VGA_BLACK));
 		krnl_print_at("\"", -1, -1, COMBINE(VGA_RED, VGA_BLACK));
 		krnl_print_at(first_word, -1, -1, COMBINE(VGA_RED, VGA_BLACK));
 		krnl_print_at("\" unrecognized\n", -1, -1, COMBINE(VGA_RED, VGA_BLACK));

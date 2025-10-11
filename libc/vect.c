@@ -29,7 +29,7 @@ void resize(Vect* v){
 
 void delete_vect(Vect* v){
     if(v->arr)
-        release(v->arr);
+        free(v->arr);
     v->cappacity = 0;
     v->size = 0;
     v->e_size = 0;
@@ -45,7 +45,7 @@ int get_vect_size(const Vect* v){
 
 void clear_vect(Vect* v){
     if(v->arr)
-        release(v->arr);
+        free(v->arr);
     v->cappacity = 2;
     v->size = 0;
     v->arr = malloc(v->cappacity * v->e_size);

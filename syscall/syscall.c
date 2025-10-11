@@ -1,8 +1,6 @@
 #include "../cpu/types.h"
 #include "../drivers/screen.h"
-#include "../drivers/keyboard.h"
 #include "../libc/alloc.h"
-#include "../libc/string.h"
 #include "../kernel/kernel_api.h"
 #include "syscall.h"
 
