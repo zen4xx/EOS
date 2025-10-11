@@ -133,7 +133,8 @@ void exec(char* cmd) {
         krnl_print("\n");
         char str[32];
         itoa(malloc_info(), str);
-        krnl_print(str);
+        print(str);
+        print(" bytes");
     }
 
     else if(strcmp(first_word, "animegirl") == 0 ){

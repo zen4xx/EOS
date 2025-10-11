@@ -1,6 +1,6 @@
 #include "stdio.h"
 
-void print(char* msg){
+void print(const char* msg){
     __asm__ (
         "movl %0, %%ebx" 
         :                 
