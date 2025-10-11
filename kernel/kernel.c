@@ -134,7 +134,7 @@ void exec(char* cmd) {
         char str[32];
         itoa(malloc_info(), str);
         print(str);
-        krnl_print(" bytes\n");
+        print(" bytes\n");
     }
 
     else if(strcmp(first_word, "animegirl") == 0 ){
@@ -142,7 +142,7 @@ void exec(char* cmd) {
     }
 
     else if(strcmp(first_word, "blackjack") == 0 ){
-        print("\nto play this game u need more than one player (u dont have friends)\n");
+        print("to play this game u need more than one player (u dont have friends)\n");
     }
 
     else {
