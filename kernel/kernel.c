@@ -2,6 +2,7 @@
 #include "../libc/stdlib.h"
 #include "../libc/stdio.h"
 #include "../libc/vect.h"
+#include "../libc/memory.h"
 
 char _current_char = '\0';
 
@@ -155,7 +156,7 @@ void exec(char* cmd) {
 	for (int i = 0; i < get_vect_size(&cmds); ++i) {
 		char* word = get_vect(&cmds)[i];
 		if (word) {
-			release(word);
+			free(word);
 		}
 	}
     delete_vect(&cmds);

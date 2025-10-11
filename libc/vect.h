@@ -1,10 +1,8 @@
 #ifndef VECT_H
 #define VECT_H
-#include "alloc.h"
-#include "memory.h"
 
 typedef struct{
-    int cappacity;
+    int capacity;
     int size;
     int e_size;
     void** arr;

@@ -23,13 +23,9 @@ void* allocate_page() {
 
 void add_to_free_list(Block* block) {
     block->is_free = 1;
-    block->next = free_list_head;
     block->prev = NULL;
-
-    if (free_list_head) {
-        free_list_head->prev = block;
-    }
-
+    block->next = free_list_head;
+    if (free_list_head) free_list_head->prev = block;
     free_list_head = block;
 }
 
@@ -45,37 +41,34 @@ void remove_from_free_list(Block* block) {
     }
 }
 
-void split_block(Block* block, u32 size) {
-    if (block->size >= size + MIN_BLOCK_SIZE) {
-        Block* new_block = (Block*)((char*)block + size + sizeof(Block));
-        new_block->size = block->size - size - sizeof(Block);
-        new_block->is_free = 1;
-        new_block->prev = block;
-        new_block->next = block->next;
+void split_block(Block* block, u32 needed_size) {
+    if (block->size < needed_size + MIN_BLOCK_SIZE) return;
+    Block* new_block = (Block*)((char*)block + needed_size);
+    new_block->size = block->size - needed_size - sizeof(Block);
+    new_block->is_free = 1;
+    new_block->prev = block;
+    new_block->next = block->next;
+    if (new_block->next) new_block->next->prev = new_block;
 
-        if (new_block->next) {
-            new_block->next->prev = new_block;
-        }
+    block->size = needed_size - sizeof(Block); 
+    block->next = new_block;
 
-        block->size = size;
-        block->next = new_block;
-
-        add_to_free_list(new_block);
-    }
+    add_to_free_list(new_block);
 }
+
 
 Block* merge_with_next(Block* block) {
     if (block->next && block->next->is_free) {
-        Block* next = block->next;
-        block->size += sizeof(Block) + next->size;
-        block->next = next->next;
+        Block* nxt = block->next;
+        remove_from_free_list(nxt);
 
-        if (next->next) {
-            next->next->prev = block;
-        }
+        block->size += sizeof(Block) + nxt->size;
+        block->next = nxt->next;
+        if (block->next) block->next->prev = block;
     }
     return block;
 }
+
 
 void init_allocator() {
     if (is_init) return;
@@ -94,7 +87,7 @@ void* allocate(u32 size) {
     if (!is_init) init_allocator();
 
     const u32 aligned_size = ALIGN(size);
-    const u32 needed_size = aligned_size + sizeof(Block);
+    const u32 needed_size   = aligned_size + sizeof(Block);   
 
     Block* curr = free_list_head;
     while (curr) {
@@ -105,8 +98,9 @@ void* allocate(u32 size) {
             if (curr->size > needed_size + MIN_BLOCK_SIZE) {
                 split_block(curr, needed_size);
             }
-            total_allocated += curr->size;
-            return (void*)(curr + 1); 
+
+            total_allocated += curr->size;   
+            return (void*)(curr + 1);
         }
         curr = curr->next;
     }
@@ -114,6 +108,7 @@ void* allocate(u32 size) {
     err("Failed to allocate memory\n");
     return NULL;
 }
+
 
 void release(void* ptr) {
     if (!ptr) return;
@@ -123,6 +118,7 @@ void release(void* ptr) {
         err("Double free detected!\n");
         return;
     }
+    
     total_allocated -= block->size;
     block->is_free = 1;
 
