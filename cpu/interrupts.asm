@@ -342,7 +342,7 @@ isr80:
     pop ebp
     pop esi
     pop edi
-
+    sti
     iret 
 
 ; irqs

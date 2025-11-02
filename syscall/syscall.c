@@ -22,6 +22,7 @@ u32 syscall_handler(
     case SYSCALL_GETCHAR:
         asm volatile("sti"); //enable interuption
         while(_current_char == '\0'); 
+        asm volatile("cli");
         return _current_char;
     case SYSCALL_MALLOC:
         return (u32)allocate(a1);
