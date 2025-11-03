@@ -124,7 +124,7 @@ void register_interrupt_handler(u8 n, isr_t handler) {
 }
 
 void irq_handler(registers_t reg){
-    if(reg.int_no >= 40) port_byte_out(0xA, 0x20);
+    if(reg.int_no >= 40) port_byte_out(0xA0, 0x20);
     port_byte_out(0x20, 0x20);
 
     if(interrupt_handlers[reg.int_no] != 0) {
@@ -132,8 +132,9 @@ void irq_handler(registers_t reg){
         handler(reg);
     }
 }
+
 void irq_install(){
-    init_timer(50);      //irq0
+    init_timer(100);//irq0
     init_keyboard();     //irq1
     asm volatile("sti"); //enable interruption
 }

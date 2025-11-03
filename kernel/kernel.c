@@ -10,9 +10,9 @@ void kernel_main() {
 
 	clear();
 
-	isr_install();
 	irq_install();
-
+	isr_install();
+    
 	krnl_print("W3lC0M3 T0 ");
 	krnl_print_at("EOS\n", -1, -1, COMBINE(VGA_MAGENTA, VGA_BLACK));
 	krnl_print(">");

@@ -1,3 +1,4 @@
+//whats wrong with you
 #include "timer.h"
 
 u32 tick = 0;
@@ -10,6 +11,7 @@ void init_timer(u32 freq){
     register_interrupt_handler(IRQ0, timer_callback);
 
     //1193180hz is hardware clock
+    if(freq == 0) freq = 1;
     u32 div = 1193180 / freq;
     u8 low = (u8)(div & 0xFF);
     u8 high = (u8)((div >> 8) & 0xFF);
