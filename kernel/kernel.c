@@ -3,6 +3,8 @@
 #include "../libc/stdio.h"
 #include "../libc/vect.h"
 #include "../libc/memory.h"
+#include "../libc/power.h"
+#include "alloc.h"
 
 char _current_char = '\0';
 
@@ -13,6 +15,8 @@ void kernel_main() {
 	irq_install();
 	isr_install();
     
+    init_allocator();
+
 	krnl_print("W3lC0M3 T0 ");
 	krnl_print_at("EOS\n", -1, -1, COMBINE(VGA_MAGENTA, VGA_BLACK));
 	krnl_print(">");
@@ -36,14 +40,24 @@ void exec(char* cmd) {
     split_cmd(&cmds, cmd);
     char* first_word = get_vect(&cmds)[0];
 
-    if (strcmp(first_word, "stop") == 0) {
+    if (strcmp(first_word, "shutdown") == 0) {
         krnl_print("Stopping the CPU. Bye!\n");
-        asm volatile("hlt");
+        shutdown();
     }
+
+    else if (strcmp(first_word, "reboot") == 0) {
+        krnl_print("Rebooting...\n");
+        reboot();
+    }
+
     else if (strcmp(first_word, "help") == 0) {
         krnl_print("Type ");
-        krnl_print_at("stop", -1, -1, COMBINE(VGA_YELLOW, VGA_BLACK));
-        krnl_print(" to halt the CPU\n");
+        krnl_print_at("shutdown", -1, -1, COMBINE(VGA_YELLOW, VGA_BLACK));
+        krnl_print(" to shutdown\n");
+
+        krnl_print("Type ");
+        krnl_print_at("reboot", -1, -1, COMBINE(VGA_YELLOW, VGA_BLACK));
+        krnl_print(" to reboot\n");
 
         krnl_print("Type ");
         krnl_print_at("help", -1, -1, COMBINE(VGA_YELLOW, VGA_BLACK));

@@ -69,10 +69,8 @@ Block* merge_with_next(Block* block) {
     return block;
 }
 
-
 void init_allocator() {
     if (is_init) return;
-
     Block* initial = (Block*)allocate_page();
     initial->size = ALLOCATOR_PAGE_SIZE - sizeof(Block);
     initial->is_free = 1;
@@ -84,8 +82,6 @@ void init_allocator() {
 }
 
 void* allocate(u32 size) {
-    if (!is_init) init_allocator();
-
     const u32 aligned_size = ALIGN(size);
     const u32 needed_size   = aligned_size + sizeof(Block);   
 

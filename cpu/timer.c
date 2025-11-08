@@ -1,4 +1,3 @@
-//whats wrong with you
 #include "timer.h"
 
 u32 tick = 0;
