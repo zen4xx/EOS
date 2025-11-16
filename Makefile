@@ -1,6 +1,6 @@
 C_SOURCES = $(wildcard kernel/*.c drivers/*.c cpu/*.c libc/*.c syscall/*.c)
 HEADERS = $(wildcard kernel/*.h drivers/*.h cpu/*.h libc/*.h syscall/*.h)
-OBJ = ${C_SOURCES:.c=.o cpu/interrupts.o syscall/syscall.o} 
+OBJ = ${C_SOURCES:.c=.o cpu/interrupts.o} 
 
 CC = i686-elf-gcc
 GDB = i686-elf-gdb
