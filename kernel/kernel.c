@@ -196,7 +196,7 @@ void split_cmd(Vect* vec, char* cmd) {
             continue;
         }
         
-        mem_cpy(word, start, word_len);
+        memcpy(word, start, word_len);
         word[word_len] = '\0'; 
         vect_add_elem(vec, word);
         start = end;

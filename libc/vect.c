@@ -22,7 +22,7 @@ void vect_add_elem(Vect* v, void* elem){
 void resize(Vect* v){
     int new_cappacity = v->capacity * 2;
     void** new_arr = (void**)malloc(new_cappacity * sizeof(void*));
-    mem_cpy(new_arr, v->arr, v->size * sizeof(void*)); 
+    memcpy(new_arr, v->arr, v->size * sizeof(void*)); 
     free(v->arr);
     v->arr = new_arr;
     v->capacity = new_cappacity;
