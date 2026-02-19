@@ -2,7 +2,6 @@
 #include "../libc/stdlib.h"
 #include "../libc/stdio.h"
 #include "../libc/vect.h"
-#include "../libc/memory.h"
 #include "../libc/power.h"
 #include "alloc.h"
 
@@ -30,15 +29,15 @@ void kernel_main() {
 
 static const char* hb_list[] = {"OS developer,malware???:zen4x", "Site developer,malware???:4rch1nx", "Fan fiction author:Yan", "Fan fiction author:oslfnkwenfm", "Fan fiction author:Kilka"};
 
-void split_cmd(Vect* vec, char* cmd);
+void split_cmd(vect_t* vec, char* cmd);
 
 void exec(char* cmd) {
     if (!cmd || cmd[0] == '\0') return;
 
-	Vect cmds;
-	init_vect(&cmds);
+	vect_t cmds;
+    vect_init(&cmds, sizeof(char*));
     split_cmd(&cmds, cmd);
-    char* first_word = get_vect(&cmds)[0];
+    char* first_word = *(char**)vect_get(&cmds, 0);
 
     if (strcmp(first_word, "shutdown") == 0) {
         krnl_print("Stopping the CPU. Bye!\n");
@@ -101,12 +100,12 @@ void exec(char* cmd) {
         clear();
     }
     else if (strcmp(first_word, "calc") == 0) {
-        if (get_vect_size(&cmds) != 4) {
+        if (vect_get_size(&cmds) != 4) {
             krnl_print("Usage: calc <num1> <OP> <num2>");
         } else {
-            int a = atoi(get_vect(&cmds)[1]);
-            int b = atoi(get_vect(&cmds)[3]);
-            char* sign = get_vect(&cmds)[2];
+            int a = atoi(*(char**)vect_get(&cmds, 1));
+            int b = atoi(*(char**)vect_get(&cmds, 3));
+            char* sign = *(char**)vect_get(&cmds, 2);
 
             char res[32] = {0};
             
@@ -137,8 +136,8 @@ void exec(char* cmd) {
         krnl_print("\n");
     }
     else if (strcmp(first_word, "echo") == 0) {
-        for (int i = 1; i < get_vect_size(&cmds); ++i) {
-            krnl_print_at(get_vect(&cmds)[i], -1, -1, COMBINE(VGA_VIOLET, VGA_BLACK));
+        for (int i = 1; i < vect_get_size(&cmds); ++i) {
+            krnl_print_at(*(char**)vect_get(&cmds, i), -1, -1, COMBINE(VGA_VIOLET, VGA_BLACK));
             krnl_print(" ");
         }
         krnl_print("\n");
@@ -167,16 +166,16 @@ void exec(char* cmd) {
 		krnl_print("Type help to list all commands\n");
     }
 
-	for (int i = 0; i < get_vect_size(&cmds); ++i) {
-		char* word = get_vect(&cmds)[i];
+	for (int i = 0; i < vect_get_size(&cmds); ++i) {
+		char* word = *(char**)vect_get(&cmds, i);
 		if (word) {
 			free(word);
 		}
 	}
-    delete_vect(&cmds);
+    vect_delete(&cmds);
 }
 
-void split_cmd(Vect* vec, char* cmd) {
+void split_cmd(vect_t* vec, char* cmd) {
     if (!vec || !cmd) return;
 
     char* start = cmd;
@@ -198,11 +197,11 @@ void split_cmd(Vect* vec, char* cmd) {
         
         memcpy(word, start, word_len);
         word[word_len] = '\0'; 
-        vect_add_elem(vec, word);
+        vect_push(vec, (void*)&word);
         start = end;
     }
 
-    if (get_vect_size(vec) == 0) {
+    if (vect_get_size(vec) == 0) {
         print("Warning: No words were parsed.\n");
     }
 }

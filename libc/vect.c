@@ -1,53 +1,45 @@
 #include "vect.h"
-#include "memory.h"
 #include "stdlib.h"
 
-void resize(Vect* v);
-
-void init_vect(Vect* v){
-    v->e_size = sizeof(void*);
-    v->capacity = 2;
-    v->size = 0;
-    v->arr = malloc(v->capacity * v->e_size);
+static void resize(vect_t *vect)
+{
+    size_t new_cap = vect->capacity * 2;
+    void* new_arr = (void*)malloc(new_cap * vect->chunk_size);
+    memcpy(new_arr, vect->arr, vect->size * vect->chunk_size);
+    free(vect->arr);
+    vect->arr = new_arr;
+    vect->capacity = new_cap;
 }
 
-void vect_add_elem(Vect* v, void* elem){
-    if(v->size >= v->capacity){
-        resize(v);
-    }
-    v->arr[v->size++] = elem;
+void vect_init(vect_t *vect, size_t chunk_size)
+{
+    vect->chunk_size = chunk_size;
+    vect->size = 0;
+    vect->capacity = 2;
+    vect->arr = malloc(vect->capacity * chunk_size);
 }
 
+void vect_push(vect_t *vect, void *pElem)
+{
+    if (vect->size >= vect->capacity)
+        resize(vect);
 
-void resize(Vect* v){
-    int new_cappacity = v->capacity * 2;
-    void** new_arr = (void**)malloc(new_cappacity * sizeof(void*));
-    memcpy(new_arr, v->arr, v->size * sizeof(void*)); 
-    free(v->arr);
-    v->arr = new_arr;
-    v->capacity = new_cappacity;
+    memcpy((char*)vect->arr + (vect->size * vect->chunk_size), pElem, vect->chunk_size);
+    ++vect->size;
 }
 
-void delete_vect(Vect* v){
-    if(v->arr)
-        free(v->arr);
-    v->capacity = 0;
-    v->size = 0;
-    v->e_size = 0;
+void vect_delete(vect_t *vect)
+{
+    free(vect->arr);
+    vect->arr = NULL;
+    vect->capacity = 0;
+    vect->size = 0;
 }
 
-void** get_vect(const Vect* v) {
-    return v->arr;
-}
-
-int get_vect_size(const Vect* v){
-    return v->size;
-}
-
-void clear_vect(Vect* v){
-    if(v->arr)
-        free(v->arr);
-    v->capacity = 2;
-    v->size = 0;
-    v->arr = malloc(v->capacity * v->e_size);
+void vect_clear(vect_t *vect)
+{
+    free(vect->arr);
+    vect->size = 0;
+    vect->capacity = 2;
+    vect->arr = malloc(vect->capacity * vect->chunk_size);
 }
