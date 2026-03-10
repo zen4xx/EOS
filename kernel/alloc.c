@@ -1,6 +1,6 @@
 #include "alloc.h"
 
-#define ALLOCATOR_PAGE_SIZE 4096
+#define ALLOCATOR_PAGE_SIZE 8192
 #define NULL 0
 #define ALIGNMENT 8
 #define ALIGN(size) (((size) + ALIGNMENT - 1) & ~(ALIGNMENT - 1))
@@ -13,11 +13,16 @@ void* page_ptr;
 u8 is_init = 0;
 u32 total_allocated = 0;
 
-void* allocate_page() {
-    static void* current = FREE_MEM_ADDR;
+void* current_free_mem_addr = FREE_MEM_ADDR;
 
-    void* result = current;
-    current += ALLOCATOR_PAGE_SIZE;
+static u32 num_of_pages = 0;
+
+void* allocate_page() {
+    void* result = current_free_mem_addr;
+    current_free_mem_addr += ALLOCATOR_PAGE_SIZE;
+
+    ++num_of_pages;
+
     return result;
 }
 
@@ -83,7 +88,14 @@ void init_allocator() {
 
 void* allocate(u32 size) {
     const u32 aligned_size = ALIGN(size);
-    const u32 needed_size   = aligned_size + sizeof(Block);   
+    const u32 needed_size  = aligned_size + sizeof(Block);  
+
+    if ((ALLOCATOR_PAGE_SIZE * num_of_pages) - total_allocated <= size)
+    {
+        Block* new_allocated_block = (Block*)allocate_page();   
+        new_allocated_block->size = ALLOCATOR_PAGE_SIZE - sizeof(Block);
+        add_to_free_list(new_allocated_block);
+    } 
 
     Block* curr = free_list_head;
     while (curr) {
