@@ -16,12 +16,11 @@ typedef struct
     jmp_buf_t jmp_buf;    
 } task_t;
 
-static task_t tasks[TASK_NUM];
-
 void mt_init();
 uint16_t mt_create_task(void (*entry_point)()); // returns pid
 void mt_delete_task(uint16_t pid);
 void mt_switch();
+void mt_start();
 
 
 #endif
