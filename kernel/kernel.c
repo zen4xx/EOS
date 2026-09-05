@@ -11,8 +11,13 @@ void kernel_main() {
 
 	clear();
 
-	irq_install();
+	/* isr_install() builds and loads the IDT; irq_install() ends with sti.
+	 * Doing them the other way round meant interrupts were enabled with no
+	 * IDT loaded - a single stray IRQ in that window triple-faults the CPU.
+	 * On real hardware (BIOS USB legacy emulation, RTC, ...) stray IRQs in
+	 * that window are entirely realistic. */
 	isr_install();
+	irq_install();
     
     init_allocator();
 

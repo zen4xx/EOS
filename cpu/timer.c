@@ -18,4 +18,6 @@ void init_timer(u32 freq){
     port_byte_out(0x43, 0x36); //cmd port
     port_byte_out(0x40, low);
     port_byte_out(0x40, high);
+
+    irq_set_mask(0, 0);
 }
