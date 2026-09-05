@@ -56,7 +56,16 @@ _start:
             jmp     0x0000:.canonical       ; some BIOSes enter at 07C0:0000
 
 .canonical:
-            mov     [boot_drive], dl        ; DL = BIOS drive we booted from
+            ; DL = BIOS drive we booted from. USB-FDD emulation gives 0x00,
+            ; USB-HDD gives 0x80. A few BIOSes leave DL undefined, so sanity
+            ; check it rather than trusting whatever was in the register.
+            test    dl, 0x80
+            jnz     .have_drive
+            cmp     dl, 0x03
+            jbe     .have_drive
+            mov     dl, 0x80
+.have_drive:
+            mov     [boot_drive], dl
 
             mov     si, msg_s1
             call    puts
@@ -110,5 +119,30 @@ boot_drive  db 0
 msg_s1      db "EOS s1", 13, 10, 0
 msg_err     db "S1: disk error", 13, 10, 0
 
-            times 510 - ($ - $$) db 0
+; --------------------------------------------------------------------------
+; MBR partition table.
+;
+; A USB stick is usually handed to the firmware as USB-HDD, and plenty of
+; BIOSes will not even list a removable device that has no partition table.
+; This costs nothing: the table lives at 446..509, the BPB at 3..61, and the
+; code sits between them. USB-FDD emulation ignores it and uses the BPB.
+;
+; The partition deliberately starts at LBA 0 and covers the boot sector
+; itself (the same trick isohybrid uses) - if some firmware decides to
+; chain-load the "volume boot record" it just lands back here.
+; --------------------------------------------------------------------------
+            times 446 - ($ - $$) db 0
+
+part1:
+            db 0x80                 ; bootable
+            db 0x00, 0x01, 0x00     ; start CHS = c0 h0 s1
+            db 0x01                 ; type: FAT12 (matches the BPB)
+            db 0x01, 0x12, 0x4F     ; end   CHS = c79 h1 s18
+            dd 0                    ; start LBA
+            dd 2880                 ; sectors
+
+part2:      times 16 db 0
+part3:      times 16 db 0
+part4:      times 16 db 0
+
             dw 0xAA55

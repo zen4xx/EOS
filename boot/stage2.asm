@@ -39,6 +39,7 @@ stage2:
             mov     si, msg_hello
             call    puts
 
+            call    detect_ext
             call    get_geometry
             call    load_kernel
             call    enable_a20
@@ -54,7 +55,30 @@ stage2:
             jmp     CODE_SEG:pm_entry
 
 ; ===========================================================================
-; get_geometry - INT 13h AH=08h. Falls back to 18 spt / 2 heads.
+; detect_ext - is INT 13h AH=42h (LBA read) available?
+;
+; USB-HDD emulation always has it, and it removes every geometry worry: no
+; CHS maths, no track boundaries. Floppy emulation usually does not, so we
+; keep the CHS path as a fallback and also fall back at runtime if an LBA
+; read ever fails.
+; ===========================================================================
+detect_ext:
+            mov     byte [use_lba], 0
+            mov     ah, 0x41
+            mov     bx, 0x55AA
+            mov     dl, [boot_drive]
+            int     0x13
+            jc      .no
+            cmp     bx, 0xAA55
+            jne     .no
+            test    cl, 1                   ; bit 0 = extended read/write
+            jz      .no
+            mov     byte [use_lba], 1
+.no:
+            ret
+
+; ===========================================================================
+; get_geometry - INT 13h AH=08h
 ; ===========================================================================
 get_geometry:
             push    es
@@ -79,8 +103,13 @@ get_geometry:
             pop     es
             ret
 .fallback:
-            mov     word [spt], 18
+            mov     word [spt], 18          ; floppy-shaped default
             mov     word [heads], 2
+            test    byte [boot_drive], 0x80
+            jz      .out
+            mov     word [spt], 63          ; hard-disk-shaped default
+            mov     word [heads], 16
+.out:
             pop     es
             ret
 
@@ -96,31 +125,25 @@ load_kernel:
             cmp     word [left], 0
             je      .done
 
-            ; ---- LBA -> CHS ---------------------------------------------
-            mov     ax, [cur_lba]
-            xor     dx, dx
-            div     word [spt]              ; AX = lba/spt   DX = lba%spt
-            mov     cl, dl
-            inc     cl                      ; sector is 1-based
-            xor     dx, dx
-            div     word [heads]            ; AX = cylinder  DX = head
-            mov     ch, al                  ; cylinder low 8 bits
-            shl     ah, 6                   ; cylinder bits 8..9 -> CL[7:6]
-            or      cl, ah
-            mov     [chs_cx], cx
-            mov     [chs_dh], dl
+            cmp     byte [use_lba], 0
+            je      .chs_prep
+            mov     ax, 127                 ; DAP limit
+            jmp     .have_max
 
-            ; ---- how many sectors may this one call cover? ---------------
+.chs_prep:
+            call    calc_chs
             mov     ax, [spt]               ; sectors remaining on this track
             mov     bx, [chs_cx]
             and     bx, 0x003F
             sub     ax, bx
             inc     ax
+
+.have_max:
             cmp     ax, [left]
             jbe     .cap_boundary
             mov     ax, [left]
 .cap_boundary:
-            mov     bx, [dst_seg]           ; do not cross a 64K DMA boundary
+            mov     bx, [dst_seg]           ; never cross a 64K DMA boundary
             and     bx, 0x0FFF
             mov     si, 0x1000
             sub     si, bx
@@ -131,33 +154,19 @@ load_kernel:
 .cap_ok:
             mov     [count], al
 
-            ; ---- read with retries --------------------------------------
-            mov     di, 5
-.retry:
-            mov     ax, [dst_seg]
-            mov     es, ax
-            xor     bx, bx
-            mov     ah, 0x02
-            mov     al, [count]
-            mov     cx, [chs_cx]
-            mov     dh, [chs_dh]
-            mov     dl, [boot_drive]
-            int     0x13
+            cmp     byte [use_lba], 0
+            je      .do_chs
+            call    read_lba
             jnc     .read_ok
-
-            xor     ah, ah
-            mov     dl, [boot_drive]
-            int     0x13                    ; recalibrate, then try again
-            dec     di
-            jnz     .retry
-
-            mov     si, msg_disk
-            call    puts
-            jmp     halt
+            mov     byte [use_lba], 0       ; BIOS lied about extensions
+            jmp     .next
+.do_chs:
+            call    read_chs
+            jc      .fail
 
 .read_ok:
-            mov     al, '.'                 ; progress, so a slow USB floppy
-            call    putc                    ; does not look like a hang
+            mov     al, '.'                 ; progress, so a slow drive does
+            call    putc                    ; not look like a hang
 
             xor     ax, ax
             mov     al, [count]
@@ -170,6 +179,88 @@ load_kernel:
 .done:
             mov     si, msg_crlf
             call    puts
+            ret
+.fail:
+            mov     si, msg_disk
+            call    puts
+            jmp     halt
+
+; ---------------------------------------------------------------------------
+; calc_chs - [cur_lba] -> [chs_cx], [chs_dh]
+calc_chs:
+            mov     ax, [cur_lba]
+            xor     dx, dx
+            div     word [spt]              ; AX = lba/spt   DX = lba%spt
+            mov     cl, dl
+            inc     cl                      ; sector is 1-based
+            xor     dx, dx
+            div     word [heads]            ; AX = cylinder  DX = head
+            mov     ch, al                  ; cylinder low 8 bits
+            shl     ah, 6                   ; cylinder bits 8..9 -> CL[7:6]
+            or      cl, ah
+            mov     [chs_cx], cx
+            mov     [chs_dh], dl
+            ret
+
+; ---------------------------------------------------------------------------
+; read_chs / read_lba - CF set if all retries failed
+read_chs:
+            mov     di, 5
+.retry:
+            mov     ax, [dst_seg]
+            mov     es, ax
+            xor     bx, bx
+            mov     ah, 0x02
+            mov     al, [count]
+            mov     cx, [chs_cx]
+            mov     dh, [chs_dh]
+            mov     dl, [boot_drive]
+            int     0x13
+            jnc     .ok
+            call    disk_reset
+            dec     di
+            jnz     .retry
+            stc
+            ret
+.ok:        clc
+            ret
+
+read_lba:
+            mov     di, 5
+.retry:
+            mov     byte [dap + 0], 0x10    ; packet size
+            mov     byte [dap + 1], 0
+            xor     ax, ax
+            mov     al, [count]
+            mov     [dap + 2], ax           ; sector count
+            mov     word [dap + 4], 0       ; buffer offset
+            mov     ax, [dst_seg]
+            mov     [dap + 6], ax           ; buffer segment
+            mov     ax, [cur_lba]
+            mov     [dap + 8], ax           ; LBA, 64-bit
+            mov     word [dap + 10], 0
+            mov     word [dap + 12], 0
+            mov     word [dap + 14], 0
+
+            mov     ah, 0x42
+            mov     dl, [boot_drive]
+            mov     si, dap
+            int     0x13
+            jnc     .ok
+            call    disk_reset
+            dec     di
+            jnz     .retry
+            stc
+            ret
+.ok:        clc
+            ret
+
+disk_reset:
+            pusha
+            xor     ah, ah
+            mov     dl, [boot_drive]
+            int     0x13
+            popa
             ret
 
 ; ===========================================================================
@@ -374,6 +465,8 @@ dst_seg     dw 0
 chs_cx      dw 0
 chs_dh      db 0
 count       db 0
+use_lba     db 0
+dap         times 16 db 0       ; INT 13h AH=42h disk address packet
 
 msg_hello   db "EOS s2: loading kernel ", 0
 msg_crlf    db 13, 10, 0

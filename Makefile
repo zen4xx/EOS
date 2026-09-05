@@ -29,7 +29,7 @@ LDFLAGS = -m elf_i386 -T boot/link.ld -nostdlib
 
 FLOPPY_BYTES = 1474560
 
-.PHONY: all run clean
+.PHONY: all run run-usb run-hdd debug test clean
 all: eos.img
 
 eos.img: boot/stage1.bin boot/stage2.bin kernel.bin
@@ -44,7 +44,12 @@ boot/stage1.bin: boot/stage1.asm
 boot/stage2.bin: boot/stage2.asm kernel.bin
 	@SZ=$$(stat -c%s kernel.bin); SECT=$$(( ($$SZ + 511) / 512 )); \
 	 echo "kernel.bin = $$SZ bytes -> $$SECT sectors"; \
-	 if [ $$SECT -gt 2000 ]; then echo "kernel too big for a floppy"; exit 1; fi; \
+	 if [ $$SECT -gt 52 ]; then \
+	   echo "kernel.bin is $$SZ bytes; it loads at 0x1000 and would run into"; \
+	   echo "stage 2's real-mode stack at 0x7C00. Keep it under 26624 bytes,"; \
+	   echo "or move the load address / stack in boot/stage2.asm."; \
+	   exit 1; \
+	 fi; \
 	 nasm $< -f bin -D KERNEL_SECTORS=$$SECT -o $@
 
 kernel.elf: boot/kernel_entry.o $(OBJ) boot/link.ld
@@ -59,8 +64,22 @@ kernel.bin: kernel.elf
 %.o: %.asm
 	nasm $< -f elf32 -o $@
 
+# --- QEMU ------------------------------------------------------------------
+# run      floppy, i.e. how a USB floppy adapter looks (DL=0x00, CHS reads)
+# run-usb  USB mass storage, geometry chosen by SeaBIOS
+# run-hdd  hard disk, i.e. how a USB stick usually looks (DL=0x80, LBA reads)
 run: eos.img
 	qemu-system-i386 -drive file=eos.img,format=raw,if=floppy -boot a
+
+run-usb: eos.img
+	qemu-system-i386 -drive if=none,id=stick,format=raw,file=eos.img \
+	                 -usb -device usb-storage,drive=stick -boot c
+
+run-hdd: eos.img
+	qemu-system-i386 -drive file=eos.img,format=raw,if=ide,index=0 -boot c
+
+test: eos.img
+	./tests/smoke.sh
 
 debug: eos.img kernel.elf
 	qemu-system-i386 -s -S -drive file=eos.img,format=raw,if=floppy -boot a &
