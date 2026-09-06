@@ -4,23 +4,6 @@
 #include "../libc/vect.h"
 #include "../libc/power.h"
 #include "alloc.h"
-#include "../multitasking/mt.h"
-
-void first() {
-    krnl_print("first1\n");
-    mt_switch();
-    krnl_print("first2\n");
-    mt_switch();
-    krnl_print("first3\n");
-}
-
-void second() {
-    krnl_print("second1\n");
-    mt_switch();
-    krnl_print("second2\n");
-    mt_switch();
-    krnl_print("second3\n");
-}
 
 char _current_char = '\0';
 
@@ -32,11 +15,6 @@ void kernel_main() {
 	isr_install();
     
     init_allocator();
-    
-    mt_init();
-    mt_create_task(first);
-    mt_create_task(second);
-    mt_start();
 
 	krnl_print("W3lC0M3 T0 ");
 	krnl_print_at("EOS\n", -1, -1, COMBINE(VGA_MAGENTA, VGA_BLACK));
