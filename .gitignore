@@ -1,3 +1,27 @@
-*.bin
+# ---- build output --------------------------------------------------------
 *.o
-/.vscode
+*.bin
+*.elf
+*.img
+*.map
+*.dis
+eos.img
+kernel.bin
+kernel.elf
+os-image.bin
+
+# ---- test artefacts ------------------------------------------------------
+tests/out/
+
+# ---- patches and merge leftovers ----------------------------------------
+*.patch
+*.orig
+*.rej
+
+# ---- editors / OS --------------------------------------------------------
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+compile_commands.json

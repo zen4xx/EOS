@@ -68,14 +68,17 @@ int print_char(char c, int col, int row, char attr) {
     }
 
     if (offset >= MAX_ROWS * MAX_COLS * 2){
-    	for(int i = 0; i < MAX_ROWS; ++i){
-		memcpy(get_offset(0, i-1) + VIDEO_ADDRESS, 
-				get_offset(0, i) + VIDEO_ADDRESS,
-				MAX_COLS * 2); 
-	}
-	char* last_line = get_offset(0, MAX_ROWS - 1) + VIDEO_ADDRESS;
-	for(int i = 0; i < MAX_COLS * 2; ++i) last_line[i] = 0;
-	offset -= 2 * MAX_COLS;
+        /* i started at 0, so the first copy wrote to row -1, i.e. 160 bytes
+         * *below* 0xB8000. Harmless under QEMU, not something to do on a
+         * real machine. */
+        for(int i = 1; i < MAX_ROWS; ++i){
+            memcpy(get_offset(0, i-1) + VIDEO_ADDRESS,
+                   get_offset(0, i) + VIDEO_ADDRESS,
+                   MAX_COLS * 2);
+        }
+        char* last_line = get_offset(0, MAX_ROWS - 1) + VIDEO_ADDRESS;
+        for(int i = 0; i < MAX_COLS; ++i){ last_line[i*2] = ' '; last_line[i*2+1] = 0x0f; }
+        offset -= 2 * MAX_COLS;
     }
 
     set_cursor_offset(offset);

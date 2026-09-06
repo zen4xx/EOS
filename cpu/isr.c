@@ -47,8 +47,12 @@ void isr_install() {
     port_byte_out(0xA1, 0x02);
     port_byte_out(0x21, 0x01);
     port_byte_out(0xA1, 0x01);
-    port_byte_out(0x21, 0x0);
-    port_byte_out(0xA1, 0x0); 
+    /* Mask everything. A PC chipset (unlike QEMU) has plenty of legacy
+     * devices - and BIOS USB emulation running in SMM - that will happily
+     * assert an IRQ we have no handler for. Each driver unmasks its own
+     * line. IRQ2 stays open because it is the slave cascade. */
+    port_byte_out(0x21, 0xFB);
+    port_byte_out(0xA1, 0xFF);
 
     // install the IRQs
     set_idt_gate(32, (u32)irq0);
@@ -110,8 +114,20 @@ char *exception_messages[] = {
     "Reserved"
 };
 
+void irq_set_mask(u8 irq, u8 masked) {
+    u16 port = (irq < 8) ? 0x21 : 0xA1;
+    u8  bit  = (irq < 8) ? irq  : (u8)(irq - 8);
+    u8  cur  = port_byte_in(port);
+
+    if (masked) cur |= (u8)(1 << bit);
+    else        cur &= (u8)~(1 << bit);
+
+    port_byte_out(port, cur);
+}
+
 void isr_handler(registers_t reg) {
     char s[16];
+    if (reg.int_no > 31) return;      /* keep the message table in bounds */
     itoa(reg.int_no, s);
     krnl_print(s);
     krnl_print(": ");
@@ -124,6 +140,21 @@ void register_interrupt_handler(u8 n, isr_t handler) {
 }
 
 void irq_handler(registers_t reg){
+    u32 irq = reg.int_no - 32;
+
+    /* Spurious IRQ7 / IRQ15. The PIC raises these on real hardware when a
+     * line drops before it is acknowledged; sending an EOI for one desyncs
+     * the controller. QEMU essentially never produces them, which is why
+     * this was never needed before. */
+    if (irq == 7 || irq == 15) {
+        u16 pic = (irq == 7) ? 0x20 : 0xA0;
+        port_byte_out(pic, 0x0B);                 /* select in-service reg */
+        if (!(port_byte_in(pic) & 0x80)) {
+            if (irq == 15) port_byte_out(0x20, 0x20);
+            return;
+        }
+    }
+
     if(reg.int_no >= 40) port_byte_out(0xA0, 0x20);
     port_byte_out(0x20, 0x20);
 
@@ -134,7 +165,7 @@ void irq_handler(registers_t reg){
 }
 
 void irq_install(){
-    init_timer(500);//irq0
+    init_timer(500);     //irq0
     init_keyboard();     //irq1
     asm volatile("sti"); //enable interruption
 }
