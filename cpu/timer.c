@@ -1,9 +1,15 @@
 #include "timer.h"
 
+static inline void yield(void)
+{
+    asm volatile("int $0x30" ::: "memory");
+}
+
 u32 tick = 0;
 
 static void timer_callback(registers_t reg) {
     ++tick;
+    yield();
 }
 
 void init_timer(u32 freq){

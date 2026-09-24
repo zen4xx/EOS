@@ -13,7 +13,7 @@
 
 C_SOURCES = $(wildcard kernel/*.c drivers/*.c cpu/*.c libc/*.c syscall/*.c multitasking/*.c)
 HEADERS   = $(wildcard kernel/*.h drivers/*.h cpu/*.h libc/*.h syscall/*.h multitasking/*.h)
-OBJ       = $(C_SOURCES:.c=.o) cpu/interrupts.o
+OBJ       = $(C_SOURCES:.c=.o) cpu/interrupts.o multitasking/mt_asm.o
 
 # Override on the command line if you build with a host toolchain, e.g.
 #   make CC="gcc" LD="ld" OBJCOPY="objcopy"

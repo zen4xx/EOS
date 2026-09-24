@@ -3,9 +3,21 @@
 #include "../libc/stdio.h"
 #include "../libc/vect.h"
 #include "../libc/power.h"
+#include "../multitasking/mt.h"
 #include "alloc.h"
 
 char _current_char = '\0';
+
+void idle_task(void *arg)
+{
+    (void)arg;
+
+    while (1) {
+        task_reap();
+        yield();
+    }
+}
+
 
 void kernel_main() {
 
@@ -15,15 +27,18 @@ void kernel_main() {
 	 * Doing them the other way round meant interrupts were enabled with no
 	 * IDT loaded - a single stray IRQ in that window triple-faults the CPU.
 	 * On real hardware (BIOS USB legacy emulation, RTC, ...) stray IRQs in
-	 * that window are entirely realistic. */
-	isr_install();
-	irq_install();
-    
+	 * that window are entirely realistic. */     
+    isr_install();
+    irq_install();
+
     init_allocator();
 
 	krnl_print("W3lC0M3 T0 ");
 	krnl_print_at("EOS\n", -1, -1, COMBINE(VGA_MAGENTA, VGA_BLACK));
 	krnl_print(">");
+
+    task_create_ex(idle_task, 0, 1024);
+    start_first_task();
 
     while(1){ 
         _current_char = '\0';

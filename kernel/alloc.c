@@ -1,6 +1,6 @@
 #include "alloc.h"
 
-#define ALLOCATOR_PAGE_SIZE 8192
+#define ALLOCATOR_PAGE_SIZE 4196 * 1024
 #define NULL 0
 #define ALIGNMENT 8
 #define ALIGN(size) (((size) + ALIGNMENT - 1) & ~(ALIGNMENT - 1))

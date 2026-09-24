@@ -40,7 +40,6 @@ extern void isr26();
 extern void isr27();
 extern void isr28();
 extern void isr29();
-extern void isr30();
 extern void isr31();
 extern void isr80();
 

@@ -1,5 +1,7 @@
 #include "isr.h"
 
+extern void sched_isr();
+
 isr_t interrupt_handlers[256];
 
 //cant do this with a loop 
@@ -34,7 +36,7 @@ void isr_install() {
     set_idt_gate(27, (u32)isr27);
     set_idt_gate(28, (u32)isr28);
     set_idt_gate(29, (u32)isr29);
-    set_idt_gate(30, (u32)isr30);
+    set_idt_gate(0x30, (u32)sched_isr);
     set_idt_gate(31, (u32)isr31);
     set_idt_gate(0x80, (u32)isr80);
 
