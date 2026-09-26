@@ -18,7 +18,6 @@ void idle_task(void *arg)
     }
 }
 
-
 void kernel_main() {
 
 	clear();
@@ -39,12 +38,6 @@ void kernel_main() {
 
     task_create_ex(idle_task, 0, 1024);
     start_first_task();
-
-    while(1){ 
-        _current_char = '\0';
-    }
-    
-
 }
 
 static const char* hb_list[] = {"OS developer,malware???:zen4x", "Site developer,malware???:4rch1nx", "Fan fiction author:Yan", "Fan fiction author:oslfnkwenfm", "Fan fiction author:Kilka"};

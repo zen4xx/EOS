@@ -25,6 +25,7 @@ u32 syscall_handler(
         return 0;
 
     case SYSCALL_GETCHAR:
+        _current_char = '\0';
         asm volatile("sti"); //enable interuption
         while(_current_char == '\0'); 
         asm volatile("cli"); //disable interuption
