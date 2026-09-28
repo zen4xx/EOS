@@ -65,10 +65,12 @@ static void keyboard_callback(registers_t regs) {
         char ch = shift_pressed ? scan_ascii_shift_map[scancode]
                                 : scan_ascii_map[scancode];
 
-        if (ch != '\0') {
+        if (ch != '\0' && !_getchar_waiting) {
             char str[2] = { ch, '\0' };
             keyboard_input(str);
         }
+        else print_char(ch, -1, -1, 0x0f);
+
         raw_keyboard_input(ch);
     }
 }

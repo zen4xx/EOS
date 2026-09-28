@@ -7,6 +7,7 @@
 #include "alloc.h"
 
 char _current_char = '\0';
+volatile char _getchar_waiting = 0;
 
 void idle_task(void *arg)
 {
@@ -18,6 +19,26 @@ void idle_task(void *arg)
     }
 }
 
+void test(void *arg)
+{
+    char c = '0';
+    int i = 0;
+    char str[10];
+
+    print("Enter your name: ");
+
+    while(c != '\n')
+    {
+        c = getc();
+        str[i++] = c;
+    }
+    str[i++] = '\n';
+    str[i] = '\0';
+    
+    print("Hi, ");
+    print(str);
+}
+                                                         
 void kernel_main() {
 
 	clear();
@@ -32,7 +53,7 @@ void kernel_main() {
 
     init_allocator();
 
-	krnl_print("W3lC0M3 T0 ");
+    krnl_print("W3lC0M3 T0 ");
 	krnl_print_at("EOS\n", -1, -1, COMBINE(VGA_MAGENTA, VGA_BLACK));
 	krnl_print(">");
 
@@ -94,6 +115,10 @@ void exec(char* cmd) {
         krnl_print("Type ");
         krnl_print_at("meminfo", -1, -1, COMBINE(VGA_YELLOW, VGA_BLACK));
         krnl_print(" to print total allocated size\n");
+
+        krnl_print("Type ");
+        krnl_print_at("test", -1, -1, COMBINE(VGA_YELLOW, VGA_BLACK));
+        krnl_print(" to run test task\n");
     }
     else if (strcmp(first_word, "honorboard") == 0) {
         for (int i = 0; i < sizeof(hb_list)/sizeof(hb_list[0]); ++i) {
@@ -153,6 +178,10 @@ void exec(char* cmd) {
         itoa(malloc_info(), str);
         print(str);
         print(" bytes\n");
+    }
+
+    else if(strcmp(first_word, "test") == 0){
+        task_create(test, 0);
     }
 
     else {

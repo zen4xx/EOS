@@ -32,5 +32,6 @@
 void exec(char* cmd);
 
 extern char _current_char;
+extern volatile char _getchar_waiting;
 
 #endif

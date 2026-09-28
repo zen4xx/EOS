@@ -12,5 +12,5 @@
 void clear();
 void krnl_print_at(const char *msg, int col, int row, char color);
 void krnl_print(const char *msg);
-
+int print_char(char c, int col, int row, char attr); 
 #endif
