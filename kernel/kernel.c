@@ -6,8 +6,10 @@
 #include "../multitasking/mt.h"
 #include "alloc.h"
 
+// TODO: fix the allocator and upgrade the shell (i dont do that rn cause i have to go to f***ing shcool tomorrow)
+
 char _current_char = '\0';
-volatile char _getchar_waiting = 0;
+volatile char _is_current_task_foreground = 0;
 
 void idle_task(void *arg)
 {
@@ -37,6 +39,47 @@ void test(void *arg)
     
     print("Hi, ");
     print(str);
+
+}
+
+void shell(void* arg)
+{
+    while (1)
+    {
+        if (_is_current_task_foreground == 1)
+        {
+            continue;
+        }
+
+        print(">");
+
+
+        char str[INPUT_BUF_SIZE];
+        int i = 0;
+        char c = '0';
+
+        while(c != '\n')
+        {
+            c = getc();
+
+            if (c == '\b' && i > 0)
+            {
+                backspace(str);
+                --i;
+                continue;
+            }
+
+            str[i++] = c;
+
+            if (i == INPUT_BUF_SIZE)
+            {
+                krnl_print_at("ERR: ", -1, -1, COMBINE(VGA_RED, VGA_BLACK));
+                krnl_print("too big input\n");
+            }
+        }
+
+        exec(str);
+    }
 }
                                                          
 void kernel_main() {
@@ -55,9 +98,9 @@ void kernel_main() {
 
     krnl_print("W3lC0M3 T0 ");
 	krnl_print_at("EOS\n", -1, -1, COMBINE(VGA_MAGENTA, VGA_BLACK));
-	krnl_print(">");
 
-    task_create_ex(idle_task, 0, 1024);
+    task_create_ex(idle_task, 0, 1024,0);
+    task_create(shell, 0, 0);
     start_first_task();
 }
 
@@ -181,7 +224,7 @@ void exec(char* cmd) {
     }
 
     else if(strcmp(first_word, "test") == 0){
-        task_create(test, 0);
+        task_create(test, 0, 1);
     }
 
     else {

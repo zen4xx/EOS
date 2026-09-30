@@ -1,3 +1,4 @@
+#include "mt.h"
 #include "../libc/stdlib.h"
 #include "../libc/stdint.h"
 
@@ -26,6 +27,7 @@ struct task {
     int state;
     void *stack;
     uint32_t stack_size;
+    char is_fg;
 };
 struct irq_frame {
     uint32_t gs, fs, es, ds;
@@ -39,6 +41,7 @@ struct irq_frame {
 
 static struct task tasks[MAX_TASKS];
 static volatile int current_task = -1;
+static volatile int num_fg_task = 0; // It can be only one fg task
 volatile int scheduler_enabled = 0;
 
 extern void task_start(void);
@@ -148,6 +151,12 @@ void task_exit(void)
 
     if (current_task >= 0) {
         tasks[current_task].state = TASK_DEAD;
+        if (tasks[current_task].is_fg == 1)
+        {
+            tasks[current_task].is_fg = 0;
+            _is_current_task_foreground = 0;
+            --num_fg_task;
+        }
     }
 
     asm volatile(
@@ -162,7 +171,7 @@ void task_exit(void)
     }
 }
 
-int task_create_ex(void (*entry)(void *), void *arg, uint32_t stack_size)
+int task_create_ex(void (*entry)(void *), void *arg, uint32_t stack_size, char is_foreground)
 {
     if (entry == 0) {
         return -1;
@@ -241,14 +250,28 @@ int task_create_ex(void (*entry)(void *), void *arg, uint32_t stack_size)
     tasks[i].stack = stack;
     tasks[i].stack_size = alloc_size;
 
+    if (num_fg_task == 0)
+    {
+        tasks[i].is_fg = is_foreground;
+
+        if (is_foreground == 1)
+        {
+            _is_current_task_foreground = 1;
+            ++num_fg_task;
+        }
+
+    }
+    else tasks[i].is_fg = 0;
+
+
     exit_critical(flags);
 
     return i;
 }
 
-int task_create(void (*entry)(void *), void *arg)
+int task_create(void (*entry)(void *), void *arg, char is_foreground)
 {
-    return task_create_ex(entry, arg, TASK_STACK_SIZE);
+    return task_create_ex(entry, arg, TASK_STACK_SIZE, is_foreground);
 }
 
 void task_reap(void)
