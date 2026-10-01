@@ -6,8 +6,6 @@
 #include "../multitasking/mt.h"
 #include "alloc.h"
 
-// TODO: fix the allocator and upgrade the shell (i dont do that rn cause i have to go to f***ing shcool tomorrow)
-
 char _current_char = '\0';
 volatile char _is_current_task_foreground = 0;
 
@@ -71,12 +69,13 @@ void shell(void* arg)
 
             str[i++] = c;
 
-            if (i == INPUT_BUF_SIZE)
+            if (i == INPUT_BUF_SIZE - 1)
             {
                 krnl_print_at("ERR: ", -1, -1, COMBINE(VGA_RED, VGA_BLACK));
                 krnl_print("too big input\n");
             }
         }
+        str[i] = '\0';
 
         exec(str);
     }
@@ -103,8 +102,6 @@ void kernel_main() {
     task_create(shell, 0, 0);
     start_first_task();
 }
-
-static const char* hb_list[] = {"OS developer,malware???:zen4x", "Site developer,malware???:4rch1nx", "Fan fiction author:Yan", "Fan fiction author:oslfnkwenfm", "Fan fiction author:Kilka"};
 
 void split_cmd(vect_t* vec, char* cmd);
 
@@ -140,10 +137,6 @@ void exec(char* cmd) {
         krnl_print(" to print this message\n");
 
         krnl_print("Type ");
-        krnl_print_at("honorboard", -1, -1, COMBINE(VGA_YELLOW, VGA_BLACK));
-        krnl_print(" to print honor board\n");
-
-        krnl_print("Type ");
         krnl_print_at("clear", -1, -1, COMBINE(VGA_YELLOW, VGA_BLACK));
         krnl_print(" to clear the screen\n");
 
@@ -163,12 +156,7 @@ void exec(char* cmd) {
         krnl_print_at("test", -1, -1, COMBINE(VGA_YELLOW, VGA_BLACK));
         krnl_print(" to run test task\n");
     }
-    else if (strcmp(first_word, "honorboard") == 0) {
-        for (int i = 0; i < sizeof(hb_list)/sizeof(hb_list[0]); ++i) {
-            krnl_print_at(hb_list[i], -1, -1, i+2);
-            krnl_print("\n");
-        }
-    }
+
     else if (strcmp(first_word, "clear") == 0) {
         clear();
     }
