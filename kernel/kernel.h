@@ -31,6 +31,6 @@
 
 void exec(char* cmd);
 
-extern char _current_char;
+extern volatile char _current_char;
 
 #endif
