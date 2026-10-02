@@ -37,12 +37,10 @@ void test(char *arg)
         c = getc();
         str[i++] = c;
     }
-    str[i++] = '\n';
     str[i] = '\0';
     
     print("Hi, ");
     print(str);
-
 }
 
 void shell(void* arg)
@@ -111,7 +109,7 @@ void kernel_main() {
 void split_cmd(vect_t* vec, char* cmd);
 
 void exec(char* cmd) {
-    if (!cmd || cmd[0] == '\0') return;
+    if (!cmd || cmd[0] == '\0' || cmd[0] == '\n') return;
 
 	vect_t cmds;
     vect_init(&cmds, sizeof(char*));
