@@ -1,16 +1,10 @@
 #include "alloc.h"
 
-#define ALLOCATOR_PAGE_SIZE 4196 * 1024
+#define ALLOCATOR_PAGE_SIZE 4096 * 1024
 #define NULL 0
 #define ALIGNMENT 8
 #define ALIGN(size) (((size) + ALIGNMENT - 1) & ~(ALIGNMENT - 1))
-/* The heap used to sit at 0x10000, which is only 60 KB below the BIOS/EBDA
- * area at 0x9FC00 - a few pages of allocation and it walks straight into
- * firmware memory. Now that stage 2 enables A20 we can use real RAM above
- * 1 MB instead. HEAP_LIMIT is deliberately conservative (8 MB); any machine
- * that can run an i5-12400F has far more than that. */
 #define FREE_MEM_ADDR  (void*)0x00100000
-#define HEAP_LIMIT     (void*)0x00800000
 #define MIN_BLOCK_SIZE (sizeof(Block) + 8)
 
 static Block* free_list_head = NULL;
@@ -24,9 +18,6 @@ void* current_free_mem_addr = FREE_MEM_ADDR;
 static u32 num_of_pages = 0;
 
 void* allocate_page() {
-    if ((char*)current_free_mem_addr + ALLOCATOR_PAGE_SIZE > (char*)HEAP_LIMIT)
-        return NULL;
-
     void* result = current_free_mem_addr;
     current_free_mem_addr = (char*)current_free_mem_addr + ALLOCATOR_PAGE_SIZE;
 

@@ -83,7 +83,7 @@ void shell(void* arg)
         exec(str);
     }
 }
-                                                         
+
 void kernel_main() {
 
 	clear();
@@ -207,7 +207,7 @@ void exec(char* cmd) {
         krnl_print("\n");
     }
 
-    else if(strcmp(first_word, "meminfo") == 0){
+    else if (strcmp(first_word, "meminfo") == 0){
         char str[32];
         itoa(malloc_info(), str);
         print(str);
