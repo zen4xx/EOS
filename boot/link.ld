@@ -3,6 +3,13 @@
 OUTPUT_FORMAT(elf32-i386)
 ENTRY(_start)
 
+PHDRS
+{
+    text   PT_LOAD FLAGS(5);  /* RX */
+    rodata PT_LOAD FLAGS(4);  /* R  */
+    data   PT_LOAD FLAGS(6);  /* RW */
+}
+
 SECTIONS
 {
     . = 0x1000;
@@ -10,17 +17,22 @@ SECTIONS
     .text : {
         *(.text.boot)          /* _start must be the very first byte */
         *(.text*)
-    }
+    } :text                    
 
-    .rodata : { *(.rodata*) }
-    .data   : { *(.data*) }
+    .rodata : { 
+        *(.rodata*) 
+    } :rodata                  
+
+    .data : { 
+        *(.data*) 
+    } :data
 
     . = ALIGN(4);
     __bss_start = .;
     .bss : {
         *(COMMON)
         *(.bss*)
-    }
+    } :data
     . = ALIGN(4);
     __bss_end = .;
 

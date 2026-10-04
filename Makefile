@@ -25,11 +25,11 @@ GDB     = i686-elf-gdb
 CFLAGS  = -m32 -g -Wall -ffreestanding -nostdlib -fno-builtin \
           -fno-pie -fno-pic -fno-stack-protector \
           -fno-asynchronous-unwind-tables
-LDFLAGS = -m elf_i386 -T boot/link.ld -nostdlib
+LDFLAGS = -m elf_i386 -z noexecstack -z separate-code -T boot/link.ld -nostdlib
 
 FLOPPY_BYTES = 1474560
 
-.PHONY: all run run-usb run-hdd debug test clean
+.PHONY: all run run-usb run-hdd debug clean
 all: eos.img
 
 eos.img: boot/stage1.bin boot/stage2.bin kernel.bin
@@ -77,9 +77,6 @@ run-usb: eos.img
 
 run-hdd: eos.img
 	qemu-system-i386 -drive file=eos.img,format=raw,if=ide,index=0 -boot c
-
-test: eos.img
-	./tests/smoke.sh
 
 debug: eos.img kernel.elf
 	qemu-system-i386 -s -S -drive file=eos.img,format=raw,if=floppy -boot a &

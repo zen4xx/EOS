@@ -1,5 +1,6 @@
 #include "mt.h"
 #include "../libc/stdlib.h"
+#include "../libc/memory.h"
 #include "../libc/stdint.h"
 
 #define MAX_TASKS        16
@@ -46,13 +47,6 @@ volatile int scheduler_enabled = 0;
 
 extern void task_start(void);
 extern void start_task(uint32_t esp);
-
-static void zero32(uint32_t *ptr, uint32_t count)
-{
-    for (uint32_t i = 0; i < count; i++) {
-        ptr[i] = 0;
-    }
-}
 
 static inline uint32_t enter_critical(void)
 {
@@ -218,7 +212,7 @@ int task_create_ex(void (*entry)(void *), void *arg, uint32_t stack_size, char i
     struct irq_frame *f =
         (struct irq_frame *)(top - sizeof(struct irq_frame));
 
-    zero32((uint32_t *)f, (uint32_t)(sizeof(struct irq_frame) / sizeof(uint32_t)));
+    memset(f, 0, sizeof(struct irq_frame));
 
     f->gs = KERNEL_DS;
     f->fs = KERNEL_DS;
