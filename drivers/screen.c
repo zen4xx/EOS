@@ -1,13 +1,6 @@
 #include "screen.h"
 #include "ports.h"
-// #include "../libc/memory.h" 
-
-void memcpy(void* dest, void* src, size_t n){
-	char* m_dest = (char*)dest;
-	const char* m_src = (const char*)src;
-	while(n--)
-		*m_dest++ = *m_src++;
-}
+#include "../libc/memory.h" 
 
 static size_t get_cursor_offset(void);
 static void set_cursor_offset(size_t offset);
@@ -97,7 +90,7 @@ static size_t get_cursor_offset(void) {
     size_t offset = (size_t)port_byte_in(REG_SCREEN_DATA) << 8; /* High byte */
     port_byte_out(REG_SCREEN_CTRL, 15);
     offset += (size_t)port_byte_in(REG_SCREEN_DATA);
-    return offset * 2; /* Position * size of character cell (2 bytes) */
+    return offset * 2;
 }
 
 static void set_cursor_offset(size_t offset) {

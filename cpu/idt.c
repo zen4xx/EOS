@@ -1,19 +1,22 @@
 #include "idt.h"
 
-idt_gate_t idt[IDT_ENTRIES];
+idt_gate_t idt[IDT_ENTRIES] __attribute__((aligned(16)));
 idt_register_t idt_reg;
 
-void set_idt_gate(int n, u32 handler) {
-    idt[n].low_offset = low_16(handler);
-    idt[n].high_offset = high_16(handler);
-    idt[n].sel = KERNEL_CS;
-    idt[n].always0 = 0;
-    idt[n].flags = 0x8E; // P(1), DPL(0), TYPE(0x0E)
+void set_idt_gate(int n, u64 handler) {
+    idt[n].offset_low  = low_16(handler);
+    idt[n].sel         = KERNEL_CS;
+    idt[n].ist         = 0;          /* no IST used */
+    idt[n].type_attr   = 0x8E;       /* P=1, DPL=0, type=0xE (64-bit interrupt gate) */
+    idt[n].offset_mid  = mid_16(handler);
+    idt[n].offset_high = high_32(handler);
+    idt[n].reserved    = 0;
 }
 
-void set_idt(){
-	idt_reg.base = (u32) &idt;
-	idt_reg.limit = IDT_ENTRIES * sizeof(idt_gate_t) - 1;
+void set_idt(void) {
+    idt_reg.limit = (u16)(IDT_ENTRIES * sizeof(idt_gate_t) - 1);
+    idt_reg.base  = (u64)&idt;
 
-	asm volatile("lidt (%0)" : : "r" (&idt_reg));
+    asm volatile("cli");
+    asm volatile("lidt %0" : : "m"(idt_reg));
 }

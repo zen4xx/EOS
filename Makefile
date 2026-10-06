@@ -11,12 +11,9 @@
 #   LBA 5..      kernel.bin            (loaded to 0x1000, then jumps to 64-bit)
 # ===========================================================================
 
-# C_SOURCES = $(wildcard kernel/*.c drivers/*.c cpu/*.c libc/*.c syscall/*.c multitasking/*.c)
-# HEADERS   = $(wildcard kernel/*.h drivers/*.h cpu/*.h libc/*.h syscall/*.h multitasking/*.h)
-C_SOURCES = $(wildcard kernel/*.c drivers/*.c)
-HEADERS   = $(wildcard kernel/*.h drivers/*.h)
-# OBJ       = $(C_SOURCES:.c=.o) cpu/interrupts.o multitasking/mt_asm.o
-OBJ       = $(C_SOURCES:.c=.o) #cpu/interrupts.o multitasking/mt_asm.o
+C_SOURCES = $(wildcard kernel/*.c drivers/*.c cpu/*.c libc/*.c syscall/*.c multitasking/*.c)
+HEADERS   = $(wildcard kernel/*.h drivers/*.h cpu/*.h libc/*.h syscall/*.h multitasking/*.h)
+OBJ       = $(C_SOURCES:.c=.o) cpu/interrupts.o multitasking/mt_asm.o
 
 # 64-bit cross-compiler toolchain
 CC      = x86_64-elf-gcc
