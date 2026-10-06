@@ -1,5 +1,5 @@
 # ===========================================================================
-# EOS build
+# EOS build (64-bit)
 #
 #   make            -> eos.img   (a full 1.44 MB floppy image, dd-able)
 #   make run        -> boot it in QEMU as a floppy
@@ -8,24 +8,33 @@
 # Layout of eos.img:
 #   LBA 0        stage 1 boot sector   (512 B, has a BPB)
 #   LBA 1..4     stage 2 loader        (2 KiB)
-#   LBA 5..      kernel.bin            (loaded to 0x1000)
+#   LBA 5..      kernel.bin            (loaded to 0x1000, then jumps to 64-bit)
 # ===========================================================================
 
-C_SOURCES = $(wildcard kernel/*.c drivers/*.c cpu/*.c libc/*.c syscall/*.c multitasking/*.c)
-HEADERS   = $(wildcard kernel/*.h drivers/*.h cpu/*.h libc/*.h syscall/*.h multitasking/*.h)
-OBJ       = $(C_SOURCES:.c=.o) cpu/interrupts.o multitasking/mt_asm.o
+# C_SOURCES = $(wildcard kernel/*.c drivers/*.c cpu/*.c libc/*.c syscall/*.c multitasking/*.c)
+# HEADERS   = $(wildcard kernel/*.h drivers/*.h cpu/*.h libc/*.h syscall/*.h multitasking/*.h)
+C_SOURCES = $(wildcard kernel/*.c drivers/*.c)
+HEADERS   = $(wildcard kernel/*.h drivers/*.h)
+# OBJ       = $(C_SOURCES:.c=.o) cpu/interrupts.o multitasking/mt_asm.o
+OBJ       = $(C_SOURCES:.c=.o) #cpu/interrupts.o multitasking/mt_asm.o
 
-# Override on the command line if you build with a host toolchain, e.g.
-#   make CC="gcc" LD="ld" OBJCOPY="objcopy"
-CC      = i686-elf-gcc
-LD      = i686-elf-ld
-OBJCOPY = i686-elf-objcopy
-GDB     = i686-elf-gdb
+# 64-bit cross-compiler toolchain
+CC      = x86_64-elf-gcc
+LD      = x86_64-elf-ld
+OBJCOPY = x86_64-elf-objcopy
+GDB     = x86_64-elf-gdb
 
-CFLAGS  = -m32 -g -Wall -ffreestanding -nostdlib -fno-builtin \
+# 64-bit specific CFLAGS
+# -mno-red-zone is CRITICAL for kernels to prevent the compiler from using 
+# the 128-byte area below RSP, which would be corrupted by hardware interrupts.
+# -mcmodel=small ensures all code and data fit in the lower 2GB (we load at 0x1000).
+CFLAGS  = -m64 -g -Wall -ffreestanding -nostdlib -fno-builtin \
           -fno-pie -fno-pic -fno-stack-protector \
-          -fno-asynchronous-unwind-tables
-LDFLAGS = -m elf_i386 -z noexecstack -z separate-code -T boot/link.ld -nostdlib
+          -fno-asynchronous-unwind-tables \
+          -mcmodel=small -mno-red-zone -mno-mmx -mno-sse -mno-sse2
+
+# Linker flags for 64-bit ELF
+LDFLAGS = -m elf_x86_64 -z noexecstack -z separate-code -T boot/link.ld -nostdlib
 
 FLOPPY_BYTES = 1474560
 
@@ -41,6 +50,8 @@ boot/stage1.bin: boot/stage1.asm
 	nasm $< -f bin -o $@
 
 # stage 2 has to be told how big the kernel is, so it is built last.
+# NOTE: The size limit still applies because stage 2 loads the kernel into 
+# low memory (0x1000) using real-mode BIOS interrupts *before* transitioning to 64-bit.
 boot/stage2.bin: boot/stage2.asm kernel.bin
 	@SZ=$$(stat -c%s kernel.bin); SECT=$$(( ($$SZ + 511) / 512 )); \
 	 echo "kernel.bin = $$SZ bytes -> $$SECT sectors"; \
@@ -61,25 +72,24 @@ kernel.bin: kernel.elf
 %.o: %.c $(HEADERS)
 	$(CC) $(CFLAGS) -c $< -o $@
 
+# Assembly files for the kernel are now 64-bit ELF
 %.o: %.asm
-	nasm $< -f elf32 -o $@
+	nasm $< -f elf64 -o $@
 
 # --- QEMU ------------------------------------------------------------------
-# run      floppy, i.e. how a USB floppy adapter looks (DL=0x00, CHS reads)
-# run-usb  USB mass storage, geometry chosen by SeaBIOS
-# run-hdd  hard disk, i.e. how a USB stick usually looks (DL=0x80, LBA reads)
+# Using qemu-system-x86_64 guarantees 64-bit CPU features are available.
 run: eos.img
-	qemu-system-i386 -drive file=eos.img,format=raw,if=floppy -boot a
+	qemu-system-x86_64 -drive file=eos.img,format=raw,if=floppy -boot a
 
 run-usb: eos.img
-	qemu-system-i386 -drive if=none,id=stick,format=raw,file=eos.img \
-	                 -usb -device usb-storage,drive=stick -boot c
+	qemu-system-x86_64 -drive if=none,id=stick,format=raw,file=eos.img \
+	                   -usb -device usb-storage,drive=stick -boot c
 
 run-hdd: eos.img
-	qemu-system-i386 -drive file=eos.img,format=raw,if=ide,index=0 -boot c
+	qemu-system-x86_64 -drive file=eos.img,format=raw,if=ide,index=0 -boot c
 
 debug: eos.img kernel.elf
-	qemu-system-i386 -s -S -drive file=eos.img,format=raw,if=floppy -boot a &
+	qemu-system-x86_64 -s -S -drive file=eos.img,format=raw,if=floppy -boot a &
 	$(GDB) -ex "target remote localhost:1234" -ex "symbol-file kernel.elf"
 
 clean:

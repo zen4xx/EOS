@@ -1,12 +1,12 @@
-#ifndef KEYBOARD_H
-#define KEYBOARD_H
+// #ifndef KEYBOARD_H
+// #define KEYBOARD_H
 
-#include "ports.h"
-#include "screen.h"
-#include "../cpu/types.h"
-#include "../cpu/isr.h"
+// #include "ports.h"
+// #include "screen.h"
+// #include "../cpu/types.h"
+// #include "../cpu/isr.h"
 
-void init_keyboard();
+// void init_keyboard();
 
-void get_key(char key[]);
-#endif
+// void get_key(char key[]);
+// #endif

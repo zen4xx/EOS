@@ -1,10 +1,10 @@
 #ifndef KERNEL_H
 #define KERNEL_H
 
-#include "../drivers/screen.h"
-#include "../cpu/isr.h"
-#include "../cpu/timer.h"
-#include "../drivers/keyboard.h"
+// #include "../drivers/screen.h"
+// #include "../cpu/isr.h"
+// #include "../cpu/timer.h"
+// #include "../drivers/keyboard.h"
 
 #define VGA_BLACK 0
 #define VGA_BLUE 1

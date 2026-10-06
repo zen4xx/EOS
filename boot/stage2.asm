@@ -1,26 +1,42 @@
 ; ===========================================================================
-; EOS - stage 2 loader (loaded by stage 1 at 0000:7E00, padded to 4 sectors)
+; EOS - stage 2 loader
+; loaded by stage 1 at 0000:7E00, padded to 4 sectors
 ;
-;   * asks the BIOS for the real drive geometry instead of guessing
-;   * reads the kernel track-by-track, never crossing a track or a 64K DMA
-;     boundary in a single INT 13h call  (the old loader asked for 31
-;     sectors in one go - QEMU allows that, a real floppy controller does not)
-;   * retries + controller reset on every read
-;   * enables A20 (with timeouts, so a board without a PS/2 controller
-;     cannot hang us)
-;   * forces text mode 3 so the kernel's 0xB8000 console is guaranteed valid
-;   * enters protected mode and calls the kernel at 0x1000
+; Modified: enter 64-bit long mode before calling the kernel.
+;
+; NOTE:
+;   * the kernel at 0x1000 must be 64-bit code
+;   * first 1 GiB is identity mapped with 2 MiB pages
+;   * page tables are placed after stage2/kernel image
 ; ===========================================================================
 BITS 16
 ORG 0x7E00
 
-KERNEL_OFF      equ 0x1000          ; where the kernel is linked
-KERNEL_SEG      equ 0x0100          ; 0x0100:0x0000 == physical 0x1000
-KERNEL_LBA      equ 5               ; 1 stage1 + 4 stage2
-STACK_TOP       equ 0x00090000      ; protected-mode stack
+%define KERNEL_OFF      0x1000          ; where the kernel is linked
+%define KERNEL_SEG      0x0100          ; 0x0100:0x0000 == physical 0x1000
+%define KERNEL_LBA      5               ; 1 stage1 + 4 stage2
+%define STACK_TOP       0x00090000      ; protected/long mode stack
 
-%ifndef KERNEL_SECTORS              ; the Makefile passes the real value
+%ifndef KERNEL_SECTORS                  ; the Makefile should pass real value
 %define KERNEL_SECTORS 64
+%endif
+
+%assign KERNEL_END KERNEL_OFF + KERNEL_SECTORS * 512
+%assign STAGE2_END 0x7E00 + 4 * 512
+
+%if KERNEL_END > STAGE2_END
+%assign FREE_RAW KERNEL_END
+%else
+%assign FREE_RAW STAGE2_END
+%endif
+
+%assign PT_BASE ((FREE_RAW + 0xFFF) & 0xFFFFF000)
+%assign PML4    PT_BASE
+%assign PDPT    PT_BASE + 0x1000
+%assign PD      PT_BASE + 0x2000
+
+%if PT_BASE + 0x3000 > STACK_TOP
+%error "EOS stage2: kernel image too large for fixed page-table/stack layout"
 %endif
 
 stage2:
@@ -31,6 +47,7 @@ stage2:
             mov     ss, ax
             mov     sp, 0x7C00
             sti
+            cld
             mov     [boot_drive], dl
 
             mov     ax, 0x0003              ; 80x25 colour text, clears screen
@@ -49,18 +66,16 @@ stage2:
 
             cli
             lgdt    [gdt_descriptor]
+
+            ; Enter 32-bit protected mode first.
+            ; Long mode requires paging and PAE, so we prepare in 32-bit mode.
             mov     eax, cr0
             or      eax, 1
             mov     cr0, eax
-            jmp     CODE_SEG:pm_entry
+            jmp     CODE32_SEG:pm32_entry
 
 ; ===========================================================================
 ; detect_ext - is INT 13h AH=42h (LBA read) available?
-;
-; USB-HDD emulation always has it, and it removes every geometry worry: no
-; CHS maths, no track boundaries. Floppy emulation usually does not, so we
-; keep the CHS path as a fallback and also fall back at runtime if an LBA
-; read ever fails.
 ; ===========================================================================
 detect_ext:
             mov     byte [use_lba], 0
@@ -96,12 +111,13 @@ get_geometry:
             mov     [spt], ax
 
             xor     ax, ax
-            mov     al, dh                  ; DH = *max* head index
+            mov     al, dh                  ; DH = max head index
             inc     ax
             jz      .fallback
             mov     [heads], ax
             pop     es
             ret
+
 .fallback:
             mov     word [spt], 18          ; floppy-shaped default
             mov     word [heads], 2
@@ -142,6 +158,7 @@ load_kernel:
             cmp     ax, [left]
             jbe     .cap_boundary
             mov     ax, [left]
+
 .cap_boundary:
             mov     bx, [dst_seg]           ; never cross a 64K DMA boundary
             and     bx, 0x0FFF
@@ -151,6 +168,7 @@ load_kernel:
             cmp     ax, si
             jbe     .cap_ok
             mov     ax, si
+
 .cap_ok:
             mov     [count], al
 
@@ -160,6 +178,7 @@ load_kernel:
             jnc     .read_ok
             mov     byte [use_lba], 0       ; BIOS lied about extensions
             jmp     .next
+
 .do_chs:
             call    read_chs
             jc      .fail
@@ -176,10 +195,12 @@ load_kernel:
             shl     bx, 5                   ; sectors * 512 / 16 paragraphs
             add     [dst_seg], bx
             jmp     .next
+
 .done:
             mov     si, msg_crlf
             call    puts
             ret
+
 .fail:
             mov     si, msg_disk
             call    puts
@@ -204,6 +225,7 @@ calc_chs:
 
 ; ---------------------------------------------------------------------------
 ; read_chs / read_lba - CF set if all retries failed
+; ---------------------------------------------------------------------------
 read_chs:
             mov     di, 5
 .retry:
@@ -222,7 +244,8 @@ read_chs:
             jnz     .retry
             stc
             ret
-.ok:        clc
+.ok:
+            clc
             ret
 
 read_lba:
@@ -237,7 +260,7 @@ read_lba:
             mov     ax, [dst_seg]
             mov     [dap + 6], ax           ; buffer segment
             mov     ax, [cur_lba]
-            mov     [dap + 8], ax           ; LBA, 64-bit
+            mov     [dap + 8], ax           ; LBA low
             mov     word [dap + 10], 0
             mov     word [dap + 12], 0
             mov     word [dap + 14], 0
@@ -252,7 +275,8 @@ read_lba:
             jnz     .retry
             stc
             ret
-.ok:        clc
+.ok:
+            clc
             ret
 
 disk_reset:
@@ -314,14 +338,14 @@ a20_test:
 
             mov     byte [es:di], 0x00
             mov     byte [ds:si], 0xFF
-            mov     dl, [es:di]             ; 0xFF -> the write wrapped -> A20 off
+            mov     dl, [es:di]             ; 0xFF -> write wrapped -> A20 off
 
             pop     ax
             mov     [ds:si], al
             pop     ax
             mov     [es:di], al
 
-            cmp     dl, 0xFF                ; flags survive the pops below
+            cmp     dl, 0xFF                ; flags survive pops below
             pop     di
             pop     si
             pop     es
@@ -363,31 +387,36 @@ a20_kbc:
             sti
             ret
 
-; CF=1 on timeout - vital: boards with no PS/2 controller return 0xFF forever
+; CF=1 on timeout
 kbc_wait_in:
             mov     cx, 0xFFFF
-.l:         in      al, 0x64
+.l:
+            in      al, 0x64
             test    al, 2
             jz      .ready
             loop    .l
             stc
             ret
-.ready:     clc
+.ready:
+            clc
             ret
 
 kbc_wait_out:
             mov     cx, 0xFFFF
-.l:         in      al, 0x64
+.l:
+            in      al, 0x64
             test    al, 1
             jnz     .ready
             loop    .l
             stc
             ret
-.ready:     clc
+.ready:
+            clc
             ret
 
 ; ===========================================================================
-halt:       cli
+halt:
+            cli
             hlt
             jmp     halt
 
@@ -403,25 +432,35 @@ puts:
             pusha
             mov     ah, 0x0E
             xor     bx, bx
-.l:         lodsb
+.l:
+            lodsb
             test    al, al
             jz      .d
             int     0x10
             jmp     .l
-.d:         popa
+.d:
+            popa
             ret
 
 ; ===========================================================================
+; GDT
+;
+; We need:
+;   - 32-bit code segment to prepare page tables and enable long mode
+;   - data segment
+;   - 64-bit code segment for the final long mode jump
+; ===========================================================================
 gdt_start:
-            dd 0x0
-            dd 0x0
-gdt_code:
+            dq 0x0000000000000000
+
+gdt_code32:
             dw 0xFFFF
             dw 0x0000
             db 0x00
             db 10011010b
             db 11001111b
             db 0x00
+
 gdt_data:
             dw 0xFFFF
             dw 0x0000
@@ -429,18 +468,37 @@ gdt_data:
             db 10010010b
             db 11001111b
             db 0x00
+
+gdt_code64:
+            dw 0xFFFF
+            dw 0x0000
+            db 0x00
+            db 10011010b
+            db 00100000b                    ; L=1, D=0, G=0
+            db 0x00
+
 gdt_end:
 
 gdt_descriptor:
             dw gdt_end - gdt_start - 1
             dd gdt_start
 
-CODE_SEG    equ gdt_code - gdt_start
-DATA_SEG    equ gdt_data - gdt_start
+CODE32_SEG  equ gdt_code32 - gdt_start
+DATA_SEG    equ gdt_data   - gdt_start
+CODE64_SEG  equ gdt_code64 - gdt_start
 
 ; ===========================================================================
+; 32-bit protected mode entry.
+;
+;   PML4[0] -> PDPT
+;   PDPT[0] -> PD
+;   PD[0..511] -> 2 MiB physical pages
+;
+; Then enable PAE, load CR3, set EFER.LME, enable paging,
+; and far jump to 64-bit mode.
+; ===========================================================================
 BITS 32
-pm_entry:
+pm32_entry:
             mov     ax, DATA_SEG
             mov     ds, ax
             mov     es, ax
@@ -449,13 +507,88 @@ pm_entry:
             mov     ss, ax
             mov     esp, STACK_TOP
             mov     ebp, esp
-            call    KERNEL_OFF
-.hang:      cli
+            cld
+
+            ; Clear PML4, PDPT and PD.
+            mov     edi, PT_BASE
+            xor     eax, eax
+            mov     ecx, 0x3000 / 4
+            rep     stosd
+
+            ; PML4[0] = PDPT physical address | PRESENT | WRITABLE
+            mov     dword [PML4], PDPT + 3
+            mov     dword [PML4 + 4], 0
+
+            ; PDPT[0] = PD physical address | PRESENT | WRITABLE
+            mov     dword [PDPT], PD + 3
+            mov     dword [PDPT + 4], 0
+
+            ; Fill PD with 512 x 2 MiB pages.
+            ; Entry flags: PRESENT | WRITABLE | PAGE_SIZE = 0x83
+            mov     edi, PD
+            mov     eax, 0x00000083
+            mov     ecx, 512
+.fill:
+            mov     [edi], eax
+            add     eax, 0x00200000
+            add     edi, 8
+            loop    .fill
+
+            ; Enable PAE.
+            mov     eax, cr4
+            or      eax, 0x20               ; CR4.PAE
+            mov     cr4, eax
+
+            ; Load page table base.
+            mov     eax, PML4
+            mov     cr3, eax
+
+            ; Enable long mode via EFER.LME.
+            mov     ecx, 0xC0000080         ; IA32_EFER
+            rdmsr
+            or      eax, 0x100              ; EFER.LME
+            wrmsr
+
+            ; Enable paging. Protected mode is already enabled.
+            mov     eax, cr0
+            or      eax, 0x80000000         ; CR0.PG
+            mov     cr0, eax
+
+            ; Now enter true 64-bit mode.
+            jmp     CODE64_SEG:long_entry
+
+; ===========================================================================
+; 64-bit long mode entry.
+;
+; The CPU is now in long mode with identity-mapped first 1 GiB.
+; The kernel must be 64-bit and linked at KERNEL_OFF.
+; ===========================================================================
+BITS 64
+long_entry:
+            mov     ax, DATA_SEG
+            mov     ds, ax
+            mov     es, ax
+            mov     fs, ax
+            mov     gs, ax
+            mov     ss, ax
+
+            mov     rsp, STACK_TOP
+            mov     rbp, rsp
+            cld
+
+            mov     eax, KERNEL_OFF
+            call    rax
+
+.hang:
+            cli
             hlt
             jmp     .hang
 
 ; ===========================================================================
+; Data
+; ===========================================================================
 BITS 16
+
 boot_drive  db 0
 spt         dw 18
 heads       dw 2
@@ -470,7 +603,7 @@ dap         times 16 db 0       ; INT 13h AH=42h disk address packet
 
 msg_hello   db "EOS s2: loading kernel ", 0
 msg_crlf    db 13, 10, 0
-msg_pm      db "entering protected mode", 13, 10, 0
+msg_pm      db "entering long mode", 13, 10, 0
 msg_disk    db 13, 10, "S2: disk read failed", 13, 10, 0
 msg_a20     db 13, 10, "S2: A20 could not be enabled", 13, 10, 0
 
