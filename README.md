@@ -1,8 +1,8 @@
 # EOS
 
-**E**chobreak **O**perating **S**ystem — a 32-bit x86 hobby kernel with a
+**E**chobreak **O**perating **S**ystem — a 64-bit x86_64 kernel with a
 two-stage BIOS bootloader, a VGA text console, PS/2 keyboard input, an `int
-0x80` syscall layer, a heap allocator and a small interactive shell.
+0x80` syscall layer, multitasking, a heap allocator and a small interactive shell.
 
 Boots on QEMU and on real hardware, from a floppy or a USB stick.
 
@@ -52,21 +52,21 @@ make test       # headless boot tests across all three emulation paths
 
 ## Toolchain
 
-You need **nasm**, **make**, **qemu-system-i386**, and an **i686-elf** cross
+You need **nasm**, **make**, **qemu-system-x86_64**, and an **x86_64-elf** cross
 compiler. The cross compiler matters: a host `gcc` targets your Linux ABI,
 defaults to PIE, and will happily link things a freestanding kernel cannot use.
 
 ### Arch
 
 ```bash
-sudo pacman -S nasm make qemu-system-x86
-yay -S i686-elf-gcc i686-elf-binutils i686-elf-gdb   # AUR
+sudo pacman -S nasm make qemu-system-x86_64
+yay -S x86_64-elf-gcc x86_64-elf-binutils x86_64-elf-gdb   # AUR
 ```
 
 ### macOS
 
 ```bash
-brew install nasm qemu i686-elf-gcc i686-elf-binutils i686-elf-gdb
+brew install nasm qemu x86_64-elf-gcc x86_64-elf-binutils x86_64-elf-gdb
 ```
 
 ### Debian / Ubuntu
@@ -75,14 +75,13 @@ No packaged cross compiler, so build one. Takes 15–30 minutes, once.
 
 ```bash
 sudo apt install build-essential bison flex libgmp-dev libmpc-dev libmpfr-dev \
-                 texinfo nasm make qemu-system-x86 wget
+                 texinfo nasm make qemu-system-x86_64 wget
 
 export PREFIX="$HOME/opt/cross"
-export TARGET=i686-elf
+export TARGET=x86_64-elf
 export PATH="$PREFIX/bin:$PATH"
 
 mkdir -p ~/src && cd ~/src
-# check ftp.gnu.org for current versions
 wget https://ftp.gnu.org/gnu/binutils/binutils-2.43.tar.gz
 wget https://ftp.gnu.org/gnu/gcc/gcc-14.2.0/gcc-14.2.0.tar.gz
 tar xf binutils-2.43.tar.gz && tar xf gcc-14.2.0.tar.gz
@@ -121,10 +120,10 @@ make            # eos.img — a 1474560-byte floppy image, dd-able as-is
 make clean
 ```
 
-Override the toolchain prefix if yours isn't on `PATH` as `i686-elf-*`:
+Override the toolchain prefix if yours isn't on `PATH` as `x86_64-elf-*`:
 
 ```bash
-make CC=i386-elf-gcc LD=i386-elf-ld OBJCOPY=i386-elf-objcopy
+make CC=x86_64-elf-gcc LD=x86_64-elf-ld OBJCOPY=x86_64-elf-objcopy
 ```
 
 The build measures `kernel.bin` and passes the real sector count into stage 2,
@@ -149,15 +148,15 @@ same `eos.img`.
 Raw commands, if you'd rather not go through make:
 
 ```bash
-# floppy
-qemu-system-i386 -drive file=eos.img,format=raw,if=floppy -boot a
+# Legacy BIOS floppy
+qemu-system-x86_64 -drive file=eos.img,format=raw,if=floppy -boot a
 
-# USB mass storage
-qemu-system-i386 -drive if=none,id=stick,format=raw,file=eos.img \
-                 -usb -device usb-storage,drive=stick -boot c
+# Legacy BIOS hard disk
+qemu-system-x86_64 -drive file=eos.img,format=raw,if=ide,index=0 -boot c
 
-# hard disk
-qemu-system-i386 -drive file=eos.img,format=raw,if=ide,index=0 -boot c
+# UEFI (requires OVMF firmware installed)
+qemu-system-x86_64 -drive if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE.fd \
+                 -drive file=eos.img,format=raw,if=virtio -boot c
 ```
 
 Useful extras:
@@ -173,43 +172,6 @@ Ctrl-Alt-G releases the mouse, Ctrl-Alt-2 gets you the QEMU monitor.
 
 ---
 
-## Tests
-
-```bash
-make test               # everything
-./tests/smoke.sh usb    # one case: floppy | usb | hdd | shell
-```
-
-`tests/smoke.sh` boots the image headless, reads the VGA text buffer straight
-out of guest memory over the QEMU monitor, and asserts on what's on screen. No
-display required, so it runs over ssh and in CI.
-
-It covers:
-
-- boots to the shell under floppy, USB-storage and hard-disk emulation
-- `help` runs — keyboard IRQ, scancode map, shell parser
-- `calc 7 * 6` gives `42` — malloc, the vector, `atoi`/`itoa`
-- `meminfo` responds — heap above 1 MB, so A20 is genuinely on
-
-```
-floppy  (USB-FDD emulation: DL=0x00, CHS reads, 18spt/2heads)
-  PASS  boots to shell
-usb     (USB mass storage, geometry decided by the BIOS)
-  PASS  boots to shell
-hdd     (USB-HDD emulation: DL=0x80, LBA reads via INT 13h AH=42h)
-  PASS  boots to shell
-shell   (keyboard IRQ, parser, heap above 1 MB)
-  PASS  help runs
-  PASS  calc 7 * 6 = 42
-  PASS  allocator alive
-
-6 passed, 0 failed
-```
-
-Bump the boot wait if your machine is slow: `BOOT_WAIT=10 make test`.
-
----
-
 ## Debugging with GDB
 
 ```bash
@@ -217,7 +179,7 @@ make debug
 ```
 
 Starts QEMU stopped at the reset vector with a gdbstub on `:1234` and attaches
-`i686-elf-gdb` with `kernel.elf` loaded, so you get real symbols.
+`x86_64-elf-gdb` with `kernel.elf` loaded, so you get real symbols.
 
 ```gdb
 (gdb) b kernel_main
@@ -462,11 +424,10 @@ Unknown numbers return `(u32)-1`.
 ## Contributing
 
 1. Branch off `main`: `git checkout -b fix/thing`
-2. `make && make test` — all six cases must pass
-3. If you touched the boot path, test on real hardware too. QEMU will not catch
+2. If you touched the boot path, test on real hardware too. QEMU will not catch
    geometry, retry or uninitialised-memory bugs
-4. Keep commits focused. Bootloader changes and driver changes are easier to
+3. Keep commits focused. Bootloader changes and driver changes are easier to
    review and revert separately
-5. Build artefacts are gitignored — don't commit `eos.img` or `kernel.elf`
+4. Build artefacts are gitignored — don't commit `eos.img` or `kernel.elf`
 
 Roadmap lives in [`roadmap`](roadmap).
