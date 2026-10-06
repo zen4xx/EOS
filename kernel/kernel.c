@@ -1,14 +1,13 @@
 #include "kernel.h"
+#include "alloc.h"
 #include "../libc/stdlib.h"
 #include "../libc/stdio.h"
 #include "../libc/vect.h"
 #include "../libc/power.h"
 #include "../multitasking/mt.h"
-#include "alloc.h"
 #include "../drivers/screen.h"
 #include "../cpu/isr.h"
 #include "../libc/string.h"
-#include "kernel.h"
 #include "../libc/stdint.h"
 
 volatile char _current_char = '\0';

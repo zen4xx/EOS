@@ -23,5 +23,5 @@ char getc(void) {
         : "memory", "rcx", "r11"
     );
     
-    return (char)num;  // Return value is in rax
+    return (char)num;  // return value is in rax
 }
