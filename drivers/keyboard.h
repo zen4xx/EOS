@@ -6,7 +6,7 @@
 #include "../cpu/types.h"
 #include "../cpu/isr.h"
 
-void init_keyboard();
-
+void init_keyboard(void);
 void get_key(char key[]);
+
 #endif

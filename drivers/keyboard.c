@@ -27,10 +27,6 @@ char scan_ascii_shift_map[SCAN_MAX + 1] = {
     0,   ' '
 };
 
-/* Drain whatever the BIOS left sitting in the 8042 output buffer. If we
- * don't, the controller never asserts IRQ1 again and the keyboard looks
- * completely dead - a classic "works in QEMU, nothing on real hardware"
- * symptom, because QEMU hands us an empty buffer. */
 static void kbd_flush(void) {
     int guard = 1024;
     while ((port_byte_in(KBD_STATUS) & 0x01) && guard--)
@@ -43,8 +39,8 @@ static void kbd_wait_write(void) {
         ;
 }
 
-static void keyboard_callback(registers_t regs) {
-    (void)regs;
+static void keyboard_callback(registers_t* regs) {
+    (void)regs; 
 
     if (!(port_byte_in(KBD_STATUS) & 0x01))
         return;                          /* not for us */
@@ -71,7 +67,7 @@ static void keyboard_callback(registers_t regs) {
     }
 }
 
-void init_keyboard(){
+void init_keyboard(void) {
     register_interrupt_handler(IRQ1, keyboard_callback);
 
     kbd_flush();
@@ -80,7 +76,9 @@ void init_keyboard(){
     port_byte_out(KBD_DATA, 0xF4);       /* enable scanning */
     kbd_flush();
 
-    /* This used to be port_byte_out(0x21, 0xFD), which rewrites the whole
-     * master mask and silently switched IRQ0 (and the cascade) back off. */
     irq_set_mask(1, 0);
+}
+
+void get_key(char key[]) {
+    (void)key;
 }

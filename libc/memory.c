@@ -7,10 +7,6 @@ void memcpy(void* dest, void* src, u32 n){
 		*m_dest++ = *m_src++;
 }
 
-/* This used to be:  char* m_dest;  while(n--) *m_dest++ = c;
- * i.e. it wrote c to a completely uninitialised pointer. Under QEMU the
- * garbage in that register happened to be harmless; on real hardware it
- * scribbles over whatever it points at. */
 void memset(void* dest, char c, u32 n){
 	char* m_dest = (char*)dest;
 	while(n--)

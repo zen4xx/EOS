@@ -1,28 +1,27 @@
 #include "stdio.h"
+#include "stdint.h"
 
-/* This was three separate asm statements. Nothing stopped GCC from putting
- * its own code (or a reload of msg) between them and clobbering ebx before
- * the int 0x80 ran - it just happened not to at -O0. One block, explicit
- * constraints. */
-void print(const char* msg){
+void print(const char* msg) {
+    register uint64_t num __asm__("rax") = 1;
+    register uint64_t arg1 __asm__("rdi") = (uint64_t)msg;
+    
     __asm__ __volatile__ (
         "int $0x80"
-        :
-        : "a" (1), "b" (msg)
-        : "memory"
+        : "+r" (num)
+        : "r" (arg1)
+        : "memory", "rcx", "r11"
     );
 }
 
-
-char getc() {
-
-    char c;
+char getc(void) {
+    register uint64_t num __asm__("rax") = 30;
+    
     __asm__ __volatile__ (
         "int $0x80"
-        : "=a" (c)
-        : "a" (30)          // syscall num
-        : "memory"
+        : "+r" (num)
+        :
+        : "memory", "rcx", "r11"
     );
-
-    return c; 
+    
+    return (char)num;  // Return value is in rax
 }

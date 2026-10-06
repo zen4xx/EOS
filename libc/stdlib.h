@@ -4,9 +4,9 @@
 #include "../cpu/types.h"
 #include "stddef.h"
 
-void* malloc(u32 size);
+void* malloc(u64 size);
 void free(void* ptr);
-void* realloc(void* ptr, u32 size);
-u32 malloc_info(); // returns a total allocated size in bytes
+void* realloc(void* ptr, u64 size);
+u64 malloc_info(void); // return a total allocated size in bytes
 
 #endif

@@ -5,6 +5,11 @@
 #include "../libc/power.h"
 #include "../multitasking/mt.h"
 #include "alloc.h"
+#include "../drivers/screen.h"
+#include "../cpu/isr.h"
+#include "../libc/string.h"
+#include "kernel.h"
+#include "../libc/stdint.h"
 
 volatile char _current_char = '\0';
 volatile char _is_current_task_foreground = 0;
@@ -12,7 +17,6 @@ volatile char _is_current_task_foreground = 0;
 void idle_task(void *arg)
 {
     (void)arg;
-
     while (1) {
         task_reap();
         yield();
@@ -88,11 +92,6 @@ void kernel_main() {
 
 	clear();
 
-	/* isr_install() builds and loads the IDT; irq_install() ends with sti.
-	 * Doing them the other way round meant interrupts were enabled with no
-	 * IDT loaded - a single stray IRQ in that window triple-faults the CPU.
-	 * On real hardware (BIOS USB legacy emulation, RTC, ...) stray IRQs in
-	 * that window are entirely realistic. */     
     isr_install();
     irq_install();
 
