@@ -5,7 +5,7 @@
 #include "idt.h"
 
 typedef struct {
-    /* Pushed by our assembly stub (pushaq) */
+    /* Pushed by assembly stub (pushaq) */
     u64 r15, r14, r13, r12, r11, r10, r9, r8;
     u64 rbp, rdi, rsi, rdx, rcx, rbx, rax;
     
