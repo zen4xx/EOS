@@ -70,7 +70,7 @@ static void split_block(Block* block, size_t needed_size) {
     }
 
     Block* new_block = (Block*)((char*)block + needed_size);
-    new_block->size = block->size - needed_size - sizeof(Block);
+    new_block->size = block->size - needed_size;
     new_block->is_free = 1;
     new_block->prev = block;
     new_block->next = block->next;

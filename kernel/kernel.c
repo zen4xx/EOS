@@ -22,13 +22,8 @@ void idle_task(void *arg)
     }
 }
 
-void test(char *arg)
+void test(void *arg)
 {
-
-    print("program started with arg: ");
-    print(arg);
-    print("\n");
-
     char c = '0';
     int i = 0;
     char str[10];
@@ -79,6 +74,7 @@ void shell(void* arg)
             {
                 krnl_print_at("ERR: ", -1, -1, COMBINE(VGA_RED, VGA_BLACK));
                 krnl_print("too big input\n");
+                i = 0;
             }
         }
         str[i] = '\0';
@@ -213,18 +209,7 @@ void exec(char* cmd) {
     }
 
     else if(strcmp(first_word, "test") == 0){
-        if (vect_get_size(&cmds) != 2) {
-            krnl_print("Usage: test <arg>\n");
-        }
-        else {
-            size_t arg_size = strlen(*(char**)vect_get(&cmds, 1));
-            char* str = malloc(arg_size);
-            append_str(str, *(char**)vect_get(&cmds, 1));
-
-            task_create((void*)test, str, 1);
-
-            free(str);
-        }
+        task_create((void*)test, 0, 1);
     }
 
     else {

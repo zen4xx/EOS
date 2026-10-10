@@ -36,9 +36,9 @@ u64 syscall_handler(u64* regs) {
     u64 num = regs[REG_RAX];  // Syscall number
     u64 a1  = regs[REG_RDI];  // First argument
     u64 a2  = regs[REG_RSI];  // Second argument
-    u64 a3  = regs[REG_RDX];  // Third argument
-    u64 a4  = regs[REG_RCX];  // Fourth argument
-    u64 a5  = regs[REG_R8];   // Fifth argument
+//    u64 a3  = regs[REG_RDX];  // Third argument  (uncomment if needed)
+//    u64 a4  = regs[REG_RCX];  // Fourth argument (uncomment if needed)
+//    u64 a5  = regs[REG_R8];   // Fifth argument  (uncomment if needed)
 
     switch (num) {
     case SYSCALL_PRINT_STRING:

@@ -3,5 +3,9 @@ simple cmd commands like: calc, echo, ... - done
 syscalls - done
 fix the vect - done
 multitasking - done
+move task to ring 3 from ring 0
+IPC
 file system
+elf64 parser
+VGA text mode to VESA/VBE framebuffer
 usb
