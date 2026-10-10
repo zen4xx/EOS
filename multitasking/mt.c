@@ -7,7 +7,7 @@
 #define TASK_STACK_SIZE  4096
 #define MIN_STACK_SIZE   1024
 
-#define KERNEL_CS        0x18
+#define KERNEL_CS        0x08
 #define KERNEL_DS        0x10
 
 #define SCHED_INT        0x30

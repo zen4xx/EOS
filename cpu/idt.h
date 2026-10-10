@@ -3,7 +3,7 @@
 
 #include "types.h"
 
-#define KERNEL_CS 0x18
+#define KERNEL_CS 0x08
 
 typedef struct {
     u16 offset_low;

@@ -7,6 +7,7 @@
 #include "../multitasking/mt.h"
 #include "../drivers/screen.h"
 #include "../cpu/isr.h"
+#include "../cpu/gdt.h"
 #include "../libc/string.h"
 #include "../libc/stdint.h"
 
@@ -84,6 +85,9 @@ void shell(void* arg)
 }
 
 void kernel_main() {
+
+    gdt_init();
+    tss_init();
 
 	clear();
 

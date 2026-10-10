@@ -13,7 +13,7 @@
 
 C_SOURCES = $(wildcard kernel/*.c drivers/*.c cpu/*.c libc/*.c syscall/*.c multitasking/*.c)
 HEADERS   = $(wildcard kernel/*.h drivers/*.h cpu/*.h libc/*.h syscall/*.h multitasking/*.h)
-OBJ       = $(C_SOURCES:.c=.o) cpu/interrupts.o multitasking/mt_asm.o
+OBJ       = $(C_SOURCES:.c=.o) cpu/interrupts.o multitasking/mt_asm.o cpu/gdt_flush.o
 
 # 64-bit cross-compiler toolchain
 CC      = x86_64-elf-gcc
