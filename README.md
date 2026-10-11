@@ -361,7 +361,7 @@ libc/
 syscall/
   syscall.c         int 0x80 dispatch
 multitasking/
-  mt.c              cooperative tasks via setjmp-style buffers
+  mt.c              preemptive multitasking with ability to create tasks into ring3
 tests/
   smoke.sh          headless QEMU boot tests
 ```
@@ -377,11 +377,8 @@ tests/
 | `echo <words...>` | print the arguments |
 | `calc <a> <op> <b>` | integer `+ - * /` |
 | `meminfo` | total allocated bytes |
-| `honorboard` | credits |
 | `reboot` | reset via the 8042 |
 | `shutdown` | ACPI poweroff, then halt |
-| `animegirl`, `blackjack` | ask and find out |
-
 ---
 
 ## Syscall ABI
