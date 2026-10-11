@@ -99,8 +99,8 @@ void kernel_main() {
     krnl_print("W3lC0M3 T0 ");
 	krnl_print_at("EOS\n", -1, -1, COMBINE(VGA_MAGENTA, VGA_BLACK));
 
-    task_create_ex(idle_task, 0, 1024,0);
-    task_create(shell, 0, 0);
+    task_create_ex(idle_task, 0, 1024, 0, 0);
+    task_create(shell, 0, 0, 0);
     start_first_task();
 }
 
@@ -213,7 +213,7 @@ void exec(char* cmd) {
     }
 
     else if(strcmp(first_word, "test") == 0){
-        task_create((void*)test, 0, 1);
+        task_create((void*)test, 0, 1, 1);
     }
 
     else {

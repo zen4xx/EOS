@@ -516,17 +516,17 @@ pm32_entry:
             rep     stosd
 
             ; PML4[0] = PDPT physical address | PRESENT | WRITABLE
-            mov     dword [PML4], PDPT + 3
+            mov     dword [PML4], PDPT + 7
             mov     dword [PML4 + 4], 0
 
             ; PDPT[0] = PD physical address | PRESENT | WRITABLE
-            mov     dword [PDPT], PD + 3
+            mov     dword [PDPT], PD + 7
             mov     dword [PDPT + 4], 0
 
             ; Fill PD with 512 x 2 MiB pages.
-            ; Entry flags: PRESENT | WRITABLE | PAGE_SIZE = 0x83
+            ; Entry flags: PRESENT | WRITABLE | PAGE_SIZE = 0x87
             mov     edi, PD
-            mov     eax, 0x00000083
+            mov     eax, 0x00000087
             mov     ecx, 512
 .fill:
             mov     [edi], eax

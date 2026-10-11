@@ -104,7 +104,9 @@ task_start:
     call r12            ; entry(arg)
 
     ; If the task function returns, cleanly exit the task
-    call task_exit
+
+    mov rax, 3        ; SYS_EXIT
+    int 0x80          ; SYSCALL
 
     ; Should never reach here
     ud2

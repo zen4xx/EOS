@@ -2,13 +2,11 @@
 #include "../libc/stdlib.h"
 #include "../libc/memory.h"
 #include "../libc/stdint.h"
+#include "../cpu/gdt.h"
 
 #define MAX_TASKS        16
 #define TASK_STACK_SIZE  4096
 #define MIN_STACK_SIZE   1024
-
-#define KERNEL_CS        0x08
-#define KERNEL_DS        0x10
 
 #define SCHED_INT        0x30
 
@@ -24,9 +22,11 @@ enum {
 };
 
 struct task {
-    uint64_t rsp;        
+    uint64_t kernel_rsp;
+    uint64_t kernel_stack_top;
     int state;
-    void *stack;
+    void *kernel_stack;
+    void *user_stack;
     uint64_t stack_size;
     char is_fg;
 };
@@ -88,7 +88,7 @@ uint64_t schedule_handler(uint64_t rsp)
     }
 
     if (current_task >= 0) {
-        tasks[current_task].rsp = rsp;
+        tasks[current_task].kernel_rsp = rsp;
 
         if (tasks[current_task].state == TASK_RUNNING) {
             tasks[current_task].state = TASK_READY;
@@ -100,7 +100,7 @@ uint64_t schedule_handler(uint64_t rsp)
     if (next < 0) {
         if (current_task >= 0 && tasks[current_task].state != TASK_DEAD) {
             tasks[current_task].state = TASK_RUNNING;
-            return tasks[current_task].rsp;
+            return tasks[current_task].kernel_rsp;
         }
 
         for (;;) {
@@ -111,7 +111,9 @@ uint64_t schedule_handler(uint64_t rsp)
     current_task = next;
     tasks[current_task].state = TASK_RUNNING;
 
-    return tasks[current_task].rsp;
+    tss_set_kernel_stack(tasks[current_task].kernel_stack_top);
+
+    return tasks[current_task].kernel_rsp;
 }
 
 void yield(void)
@@ -142,7 +144,7 @@ void task_exit(void)
     }
 }
 
-int task_create_ex(void (*entry)(void *), void *arg, uint64_t stack_size, char is_foreground)
+int task_create_ex(void (*entry)(void *), void *arg, uint64_t stack_size, char is_foreground, char is_user_space)
 {
     if (entry == 0) return -1;
 
@@ -163,40 +165,53 @@ int task_create_ex(void (*entry)(void *), void *arg, uint64_t stack_size, char i
         return -1;
     }
 
-    void *stack = TASK_ALLOC(alloc_size);
-    if (stack == 0) {
+    void *kstack = TASK_ALLOC(alloc_size);
+    if (!kstack) {
         exit_critical(flags);
         return -1;
     }
-
-    uint64_t base = (uint64_t)stack;
-    uint64_t top = base + alloc_size;
-    
-    /* 16-byte stack alignment is required in 64-bit mode */
-    top &= ~15ULL;
-
-    if ((top - base) < (sizeof(struct irq_frame) + 64)) {
-        TASK_FREE(stack);
-        exit_critical(flags);
-        return -1;
+    uint64_t ktop = ((uint64_t)kstack + stack_size) & ~15ULL;
+    uint64_t utop = 0;
+    void* ustack = NULL;
+    if (is_user_space)
+    {
+        ustack = TASK_ALLOC(alloc_size);
+        if (!ustack)
+        {
+            exit_critical(flags);
+            return -1;
+        }
+        utop = ((uint64_t)ustack + stack_size) & ~15ULL;
     }
 
-    struct irq_frame *f = (struct irq_frame *)(top - sizeof(struct irq_frame));
+    struct irq_frame *f = (struct irq_frame *)(ktop - sizeof(struct irq_frame));
     memset(f, 0, sizeof(struct irq_frame));
 
     f->r12 = (uint64_t)entry;
     f->r13 = (uint64_t)arg;
 
     f->rip = (uint64_t)task_start;
-    f->cs = KERNEL_CS;
+    
+    if (is_user_space)
+    {
+        f->cs = USER_CS;
+        f->ss = USER_SS;
+        f->rsp = utop;
+    }
+    else {
+        f->cs = KERNEL_CS;
+        f->ss = KERNEL_DS;
+        f->rsp = ktop;
+    }
+    
     f->rflags = 0x202; 
+    
 
-    f->rsp = top;
-    f->ss = KERNEL_DS;
-
-    tasks[i].rsp = (uint64_t)f;
+    tasks[i].kernel_rsp = (uint64_t)f;
+    tasks[i].kernel_stack_top = ktop;
     tasks[i].state = TASK_READY;
-    tasks[i].stack = stack;
+    tasks[i].kernel_stack = kstack;
+    tasks[i].user_stack = ustack;
     tasks[i].stack_size = alloc_size;
 
     if (num_fg_task == 0) {
@@ -212,9 +227,9 @@ int task_create_ex(void (*entry)(void *), void *arg, uint64_t stack_size, char i
     return i;
 }
 
-int task_create(void (*entry)(void *), void *arg, char is_foreground)
+int task_create(void (*entry)(void *), void *arg, char is_foreground, char is_user_space)
 {
-    return task_create_ex(entry, arg, TASK_STACK_SIZE, is_foreground);
+    return task_create_ex(entry, arg, TASK_STACK_SIZE, is_foreground, is_user_space);
 }
 
 void task_reap(void)
@@ -223,12 +238,19 @@ void task_reap(void)
 
     for (int i = 0; i < MAX_TASKS; i++) {
         if (i == current_task) continue;
-
-        if (tasks[i].state == TASK_DEAD && tasks[i].stack != 0) {
-            TASK_FREE(tasks[i].stack);
-            tasks[i].stack = 0;
+        
+        if (tasks[i].state == TASK_DEAD) {
+            if (tasks[i].kernel_stack) {
+                TASK_FREE(tasks[i].kernel_stack);
+                tasks[i].kernel_stack = 0;
+            }
+            if (tasks[i].user_stack) {
+                TASK_FREE(tasks[i].user_stack);
+                tasks[i].user_stack = 0;
+            }
             tasks[i].stack_size = 0;
-            tasks[i].rsp = 0;
+            tasks[i].kernel_rsp = 0;
+            tasks[i].kernel_stack_top = 0;
             tasks[i].state = TASK_FREE;
         }
     }
@@ -252,6 +274,6 @@ void start_first_task(void) {
     tasks[first].state = TASK_RUNNING;
     scheduler_enabled = 1;
 
-    start_task(tasks[first].rsp);
+    start_task(tasks[first].kernel_rsp);
     __builtin_unreachable();
 }

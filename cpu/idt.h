@@ -2,8 +2,7 @@
 #define IDT_H
 
 #include "types.h"
-
-#define KERNEL_CS 0x08
+#include "gdt.h"
 
 typedef struct {
     u16 offset_low;
@@ -26,6 +25,7 @@ extern idt_gate_t idt[IDT_ENTRIES];
 extern idt_register_t idt_reg;
 
 void set_idt_gate(int n, u64 handler);
+void set_idt_gate_ex(int n, u64 handler, u8 dpl); 
 void set_idt(void);
 
 #endif

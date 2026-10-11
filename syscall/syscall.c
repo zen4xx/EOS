@@ -3,6 +3,7 @@
 #include "../drivers/ports.h"
 #include "../kernel/kernel_api.h"
 #include "../kernel/alloc.h"
+#include "../multitasking/mt.h"
 #include "syscall.h"
 
 #define ACPI_PORT_1 0x604
@@ -51,6 +52,10 @@ u64 syscall_handler(u64* regs) {
         while (_current_char == '\0');
         asm volatile("cli");
         return (u64)_current_char;
+
+    case SYSCALL_EXIT:
+        task_exit();
+        return 0;
 
     case SYSCALL_MALLOC:
         return (u64)allocate((size_t)a1);

@@ -39,9 +39,9 @@ void isr_install(void) {
     set_idt_gate(27, (u64)isr27);
     set_idt_gate(28, (u64)isr28);
     set_idt_gate(29, (u64)isr29);
-    set_idt_gate(0x30, (u64)sched_isr);  /* Scheduler interrupt */
+    set_idt_gate_ex(0x30, (u64)sched_isr, 3);  /* Scheduler interrupt */
     set_idt_gate(31, (u64)isr31);
-    set_idt_gate(0x80, (u64)isr80);      /* System call interrupt */
+    set_idt_gate_ex(0x80, (u64)isr80, 3);      /* System call interrupt */
 
     port_byte_out(0x20, 0x11);  /* ICW1: init + ICW4 needed */
     port_byte_out(0xA0, 0x11);
