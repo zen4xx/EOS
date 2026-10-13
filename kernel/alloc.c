@@ -20,6 +20,12 @@
 #define FREE_MEM_ADDR ((void*)0x400000ULL)
 #define MIN_BLOCK_SIZE (sizeof(Block) + ALIGNMENT)
 
+#define MAGIC_1 0x200325 // echobreak
+#define MAGIC_2 0x240125
+#define MAGIC_3 0x151225
+
+const u32 magic = MAGIC_1 ^ MAGIC_2 ^ MAGIC_3;
+
 static Block* free_list_head = NULL_PTR;
 
 static void* current_free_mem_addr = FREE_MEM_ADDR;
@@ -135,6 +141,7 @@ void* allocate(size_t size) {
         if (curr->is_free && curr->size >= needed_size) {
             remove_from_free_list(curr);
             curr->is_free = 0;
+            curr->magic = magic;
 
             if (curr->size > needed_size + MIN_BLOCK_SIZE) {
                 split_block(curr, needed_size);
@@ -173,6 +180,12 @@ void release(void* ptr) {
         err("Double free detected!\n");
         return;
     }
+
+    if (block->magic != magic)
+    {
+        err("Sigmentation fault (Invalid magic)\n");
+        return;
+    } 
     
     total_allocated -= block->size;
     block->is_free = 1;

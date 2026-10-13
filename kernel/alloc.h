@@ -8,6 +8,7 @@
 typedef struct Block {
     size_t size;
     u8     is_free;        
+    u32 magic;
     struct Block* next;    
     struct Block* prev;    
 } __attribute__((aligned(16))) Block;
