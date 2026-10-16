@@ -497,6 +497,19 @@ CODE64_SEG  equ gdt_code64 - gdt_start
 ; Then enable PAE, load CR3, set EFER.LME, enable paging,
 ; and far jump to 64-bit mode.
 ; ===========================================================================
+
+%assign PT_BASE ((FREE_RAW + 0xFFF) & 0xFFFFF000)
+%assign PML4    PT_BASE
+%assign PDPT    PT_BASE + 0x1000
+%assign PD0     PT_BASE + 0x2000
+%assign PD1     PT_BASE + 0x3000
+%assign PD2     PT_BASE + 0x4000
+%assign PD3     PT_BASE + 0x5000
+
+%if PD3 + 0x1000 > STACK_TOP
+%error "EOS stage2: not enough space for page tables"
+%endif
+
 BITS 32
 pm32_entry:
             mov     ax, DATA_SEG
@@ -509,30 +522,57 @@ pm32_entry:
             mov     ebp, esp
             cld
 
-            ; Clear PML4, PDPT and PD.
-            mov     edi, PT_BASE
-            xor     eax, eax
-            mov     ecx, 0x3000 / 4
-            rep     stosd
+            mov edi, PT_BASE
+            xor eax, eax
+            mov ecx, 0x6000 / 4
+            rep stosd
 
-            ; PML4[0] = PDPT physical address | PRESENT | WRITABLE
-            mov     dword [PML4], PDPT + 7
-            mov     dword [PML4 + 4], 0
+            ; PML4[0] = PDPT
+            mov dword [PML4], PDPT + 7
+            mov dword [PML4 + 4], 0
 
-            ; PDPT[0] = PD physical address | PRESENT | WRITABLE
-            mov     dword [PDPT], PD + 7
-            mov     dword [PDPT + 4], 0
+            ; PDPT[0..3] = PD0..PD3
+            mov dword [PDPT + 0],  PD0 + 7
+            mov dword [PDPT + 8],  PD1 + 7
+            mov dword [PDPT + 16], PD2 + 7
+            mov dword [PDPT + 24], PD3 + 7
+            mov dword [PDPT + 4],  0
+            mov dword [PDPT + 12], 0
+            mov dword [PDPT + 20], 0
+            mov dword [PDPT + 28], 0
 
-            ; Fill PD with 512 x 2 MiB pages.
-            ; Entry flags: PRESENT | WRITABLE | PAGE_SIZE = 0x87
-            mov     edi, PD
-            mov     eax, 0x00000087
-            mov     ecx, 512
-.fill:
-            mov     [edi], eax
-            add     eax, 0x00200000
-            add     edi, 8
-            loop    .fill
+            mov edi, PD0
+            mov eax, 0x00000087   ; PRESENT | WRITABLE | PAGE_SIZE
+            mov ecx, 512
+        .fill0:
+            mov [edi], eax
+            add eax, 0x00200000
+            add edi, 8
+            loop .fill0
+
+            mov edi, PD1
+            mov ecx, 512
+        .fill1:
+            mov [edi], eax
+            add eax, 0x00200000
+            add edi, 8
+            loop .fill1
+
+            mov edi, PD2
+            mov ecx, 512
+        .fill2:
+            mov [edi], eax
+            add eax, 0x00200000
+            add edi, 8
+            loop .fill2
+
+            mov edi, PD3
+            mov ecx, 512
+        .fill3:
+            mov [edi], eax
+            add eax, 0x00200000
+            add edi, 8
+            loop .fill3
 
             ; Enable PAE.
             mov     eax, cr4

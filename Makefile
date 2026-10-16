@@ -3,6 +3,7 @@
 #
 #   make            -> eos.img   (a full 1.44 MB floppy image, dd-able)
 #   make run        -> boot it in QEMU as a floppy
+#   make run-ahci   -> boot with AHCI disk controller
 #   make clean
 #
 # Layout of eos.img:
@@ -22,9 +23,6 @@ OBJCOPY = x86_64-elf-objcopy
 GDB     = x86_64-elf-gdb
 
 # 64-bit specific CFLAGS
-# -mno-red-zone is CRITICAL for kernels to prevent the compiler from using 
-# the 128-byte area below RSP, which would be corrupted by hardware interrupts.
-# -mcmodel=small ensures all code and data fit in the lower 2GB (we load at 0x1000).
 CFLAGS  = -m64 -g -Wall -ffreestanding -nostdlib -fno-builtin \
           -fno-pie -fno-pic -fno-stack-protector \
           -fno-asynchronous-unwind-tables \
@@ -35,7 +33,7 @@ LDFLAGS = -m elf_x86_64 -z noexecstack -z separate-code -T boot/link.ld -nostdli
 
 FLOPPY_BYTES = 1474560
 
-.PHONY: all run run-usb run-hdd debug clean
+.PHONY: all run run-usb run-hdd run-ahci debug clean
 all: eos.img
 
 eos.img: boot/stage1.bin boot/stage2.bin kernel.bin
@@ -46,9 +44,6 @@ eos.img: boot/stage1.bin boot/stage2.bin kernel.bin
 boot/stage1.bin: boot/stage1.asm
 	nasm $< -f bin -o $@
 
-# stage 2 has to be told how big the kernel is, so it is built last.
-# NOTE: The size limit still applies because stage 2 loads the kernel into 
-# low memory (0x1000) using real-mode BIOS interrupts *before* transitioning to 64-bit.
 boot/stage2.bin: boot/stage2.asm kernel.bin
 	@SZ=$$(stat -c%s kernel.bin); SECT=$$(( ($$SZ + 511) / 512 )); \
 	 echo "kernel.bin = $$SZ bytes -> $$SECT sectors"; \
@@ -69,24 +64,39 @@ kernel.bin: kernel.elf
 %.o: %.c $(HEADERS)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-# Assembly files for the kernel are now 64-bit ELF
 %.o: %.asm
 	nasm $< -f elf64 -o $@
 
 # --- QEMU ------------------------------------------------------------------
-# Using qemu-system-x86_64 guarantees 64-bit CPU features are available.
+
+# Floppy boot (original)
 run: eos.img
 	qemu-system-x86_64 -drive file=eos.img,format=raw,if=floppy -boot a
 
+# USB mass storage emulation
 run-usb: eos.img
 	qemu-system-x86_64 -drive if=none,id=stick,format=raw,file=eos.img \
 	                   -usb -device usb-storage,drive=stick -boot c
 
+# Legacy IDE hard disk
 run-hdd: eos.img
 	qemu-system-x86_64 -drive file=eos.img,format=raw,if=ide,index=0 -boot c
 
+# AHCI (SATA) controller
+# Boot from floppy, attach eos.img also as SATA disk for AHCI driver testing
+run-ahci: eos.img
+	qemu-system-x86_64 \
+		-drive file=eos.img,format=raw,if=none,id=boot \
+		-device ahci,id=ahci \
+		-device ide-hd,drive=boot,bus=ahci.0 \
+		-boot c -m 512
+
 debug: eos.img kernel.elf
-	qemu-system-x86_64 -s -S -drive file=eos.img,format=raw,if=floppy -boot a &
+	qemu-system-x86_64 -s -S \
+		-drive file=eos.img,format=raw,if=none,id=boot \
+		-device ahci,id=ahci \
+		-device ide-hd,drive=boot,bus=ahci.0 \
+		-boot c -m 512 &
 	$(GDB) -ex "target remote localhost:1234" -ex "symbol-file kernel.elf"
 
 clean:

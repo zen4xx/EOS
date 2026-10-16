@@ -1,5 +1,6 @@
 #include "kernel.h"
 #include "alloc.h"
+#include "pmm.h"
 #include "../libc/stdlib.h"
 #include "../libc/stdio.h"
 #include "../libc/vect.h"
@@ -95,6 +96,8 @@ void kernel_main() {
     irq_install();
 
     init_allocator();
+
+    pmm_init(0x800000, 0x800000);
 
     krnl_print("W3lC0M3 T0 ");
 	krnl_print_at("EOS\n", -1, -1, COMBINE(VGA_MAGENTA, VGA_BLACK));
