@@ -45,7 +45,7 @@ stage2:
             mov     ds, ax
             mov     es, ax
             mov     ss, ax
-            mov     sp, 0x7C00
+            mov     sp, 0x9000
             sti
             cld
             mov     [boot_drive], dl

@@ -12,8 +12,8 @@
 #   LBA 5..      kernel.bin            (loaded to 0x1000, then jumps to 64-bit)
 # ===========================================================================
 
-C_SOURCES = $(wildcard kernel/*.c drivers/*.c cpu/*.c libc/*.c syscall/*.c multitasking/*.c)
-HEADERS   = $(wildcard kernel/*.h drivers/*.h cpu/*.h libc/*.h syscall/*.h multitasking/*.h)
+C_SOURCES = $(wildcard kernel/*.c drivers/*.c cpu/*.c libc/*.c syscall/*.c multitasking/*.c fs/*.c)
+HEADERS   = $(wildcard kernel/*.h drivers/*.h cpu/*.h libc/*.h syscall/*.h multitasking/*.h fs/*.h)
 OBJ       = $(C_SOURCES:.c=.o) cpu/interrupts.o multitasking/mt_asm.o cpu/gdt_flush.o
 
 # 64-bit cross-compiler toolchain
@@ -33,6 +33,9 @@ LDFLAGS = -m elf_x86_64 -z noexecstack -z separate-code -T boot/link.ld -nostdli
 
 FLOPPY_BYTES = 1474560
 
+EXT2_IMG = ext2_disk.img
+EXT2_SIZE = 32
+
 .PHONY: all run run-usb run-hdd run-ahci debug clean
 all: eos.img
 
@@ -47,9 +50,9 @@ boot/stage1.bin: boot/stage1.asm
 boot/stage2.bin: boot/stage2.asm kernel.bin
 	@SZ=$$(stat -c%s kernel.bin); SECT=$$(( ($$SZ + 511) / 512 )); \
 	 echo "kernel.bin = $$SZ bytes -> $$SECT sectors"; \
-	 if [ $$SECT -gt 52 ]; then \
+	 if [ $$SECT -gt 55 ]; then \
 	   echo "kernel.bin is $$SZ bytes; it loads at 0x1000 and would run into"; \
-	   echo "stage 2's real-mode stack at 0x7C00. Keep it under 26624 bytes,"; \
+	   echo "stage 2's real-mode stack at 0x9000. Keep it under 26624 bytes,"; \
 	   echo "or move the load address / stack in boot/stage2.asm."; \
 	   exit 1; \
 	 fi; \
@@ -67,29 +70,21 @@ kernel.bin: kernel.elf
 %.o: %.asm
 	nasm $< -f elf64 -o $@
 
+$(EXT2_IMG):
+	@echo "Creating ext2 disk image..."
+	dd if=/dev/zero of=$(EXT2_IMG) bs=1M count=$(EXT2_SIZE) status=none
+	mkfs.ext2 -F -b 4096 -O ^64bit,^metadata_csum,^flex_bg $(EXT2_IMG)
+	@echo "ext2 disk image created."
+
 # --- QEMU ------------------------------------------------------------------
 
-# Floppy boot (original)
-run: eos.img
-	qemu-system-x86_64 -drive file=eos.img,format=raw,if=floppy -boot a
-
-# USB mass storage emulation
-run-usb: eos.img
-	qemu-system-x86_64 -drive if=none,id=stick,format=raw,file=eos.img \
-	                   -usb -device usb-storage,drive=stick -boot c
-
-# Legacy IDE hard disk
-run-hdd: eos.img
-	qemu-system-x86_64 -drive file=eos.img,format=raw,if=ide,index=0 -boot c
-
-# AHCI (SATA) controller
-# Boot from floppy, attach eos.img also as SATA disk for AHCI driver testing
-run-ahci: eos.img
+run: eos.img $(EXT2_IMG)
 	qemu-system-x86_64 \
-		-drive file=eos.img,format=raw,if=none,id=boot \
+		-drive file=eos.img,format=raw,if=floppy \
+		-drive file=$(EXT2_IMG),format=raw,if=none,id=ext2disk \
 		-device ahci,id=ahci \
-		-device ide-hd,drive=boot,bus=ahci.0 \
-		-boot c -m 512
+		-device ide-hd,drive=ext2disk,bus=ahci.0 \
+		-boot a
 
 debug: eos.img kernel.elf
 	qemu-system-x86_64 -s -S \

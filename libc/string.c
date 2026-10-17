@@ -1,6 +1,6 @@
 #include "string.h"
 
-int strlen(char* str){
+int strlen(const char* str){
 	int r = 0;
 	while(str[r] != '\0') ++r;
 	return r;
@@ -61,7 +61,7 @@ int isspace(char c) {
     return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f' || c == '\v';
 }
 
-void backspace(char s[]){
+void backspace(char *s){
 	s[strlen(s)-1] = '\0';
 }
 
