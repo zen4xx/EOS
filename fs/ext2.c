@@ -5,8 +5,6 @@
 
 #define EXT2_SUPERBLOCK_OFFSET_LBA 2
 
-static uint8_t ext2_temp_block[4096] __attribute__((aligned(4096)));
-
 static buf_t *group_desc(ext2_fs_t *fs, uint32_t g, ext2_group_desc_t **out)
 {
     if (g >= fs->groups) return 0;
@@ -429,7 +427,7 @@ int ext2_create_file(ext2_fs_t *fs, uint32_t dir_inode_num, const char *name, ui
             new_entry->rec_len = new_rec_len;
             new_entry->name_len = name_str_len;
             new_entry->file_type = 1;
-            memcpy(new_entry->name, name, name_str_len);
+            memcpy(new_entry->name, (void*)name, name_str_len);
             
             bdirty(dir_b);
             brelse(dir_b);
@@ -470,7 +468,7 @@ int ext2_write_file(ext2_fs_t *fs, uint32_t ino, uint64_t offset, const void *sr
                  : bread(phys, bs);
         if (!b) goto fail;
 
-        memcpy(b->data + within, in_buf + done, chunk);
+        memcpy(b->data + within, (void*)(in_buf + done), chunk);
         bdirty(b);
         brelse(b);
 
