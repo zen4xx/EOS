@@ -30,7 +30,6 @@ typedef struct vfs_ops {
     vfs_node_t *(*finddir)(vfs_node_t *node, const char *name);
     vfs_node_t *(*mkdir)(vfs_node_t *parent, const char *name);
     vfs_node_t *(*create)(vfs_node_t *parent, const char *name);
-
 } vfs_ops_t;
 
 struct vfs_node {
@@ -53,8 +52,11 @@ typedef struct vfs_file {
 void vfs_init(void);
 int vfs_mount(vfs_node_t *node, vfs_node_t *mount_root);
 vfs_node_t *vfs_namei(const char *path);
+vfs_node_t *vfs_resolve_path(const char *path);
 vfs_file_t *vfs_open(const char *path, uint32_t flags);
 vfs_node_t *vfs_mkdir(const char *path);
+int vfs_readdir(const char* path, uint32_t index, vfs_dirent_t *dirent);
+int vfs_change_cwd(const char* path);
 int vfs_read(vfs_file_t *file, char *buffer, uint32_t size);
 int vfs_write(vfs_file_t *file, const char *buffer, uint32_t size);
 void vfs_close(vfs_file_t *file);

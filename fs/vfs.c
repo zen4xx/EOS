@@ -3,7 +3,8 @@
 #include "../libc/memory.h"
 #include "../libc/stdlib.h"
 
-vfs_node_t *vfs_root = 0;
+vfs_node_t *vfs_root = NULL;
+vfs_node_t *vfs_cwd = NULL;
 
 void vfs_init(void) {
     vfs_root = (vfs_node_t *)malloc(sizeof(vfs_node_t));
@@ -63,7 +64,7 @@ vfs_file_t *vfs_open(const char *path, uint32_t flags) {
         
         strncpy(filename, last_slash + 1, sizeof(filename));
         
-        vfs_node_t *parent = vfs_namei(parent_path);
+        vfs_node_t *parent = vfs_resolve_path(parent_path);
         if (!parent || !(parent->flags & VFS_FLAG_DIRECTORY)) {
             return NULL;
         }
@@ -149,7 +150,7 @@ vfs_node_t *vfs_mkdir(const char *path) {
     
     strncpy(dirname, last_slash + 1, sizeof(dirname));
     
-    vfs_node_t *parent = vfs_namei(parent_path);
+    vfs_node_t *parent = vfs_resolve_path(parent_path);
     if (!parent || !(parent->flags & VFS_FLAG_DIRECTORY)) {
         return NULL;
     }
@@ -161,8 +162,67 @@ vfs_node_t *vfs_mkdir(const char *path) {
     return parent->ops->mkdir(parent, dirname);
 }
 
+int vfs_readdir(const char* path, uint32_t index, vfs_dirent_t *dirent)
+{
+    if (!path || !dirent)
+        return -1;
+
+    vfs_node_t *dir = vfs_resolve_path(path);
+    if(!dir)
+        return -4;
+
+    if (!(dir->flags & VFS_FLAG_DIRECTORY)) {
+        return -2;
+    }
+    
+    if (!dir->ops || !dir->ops->readdir) {
+        return -3;
+    }
+    
+    return dir->ops->readdir(dir, index, dirent);
+}
+
 void vfs_close(vfs_file_t *file) {
     if (file) {
         free(file);
     }
+}
+
+vfs_node_t *vfs_resolve_path(const char *path) {
+    if (!path) return NULL;
+    
+    if (path[0] == '/') {
+        return vfs_namei(path);
+    }
+    
+    char full_path[512];
+    
+    if (vfs_cwd && vfs_cwd->name[0] != '\0') {
+        strcpy(full_path, vfs_cwd->name);
+        
+        uint32_t len = strlen(full_path);
+        if (len > 0 && full_path[len - 1] != '/') {
+            append_str(full_path, "/");
+        }
+        
+        append_str(full_path, path);
+    } else {
+        full_path[0] = '/';
+        strcpy(full_path + 1, path);
+    }
+    
+    return vfs_namei(full_path);
+}
+
+int vfs_change_cwd(const char *path)
+{
+    if (!path)
+        return -1;
+
+    vfs_node_t *dir = vfs_resolve_path(path);
+    if (!dir)
+        return -4;
+
+    vfs_cwd = dir;
+    return 0;
 }
