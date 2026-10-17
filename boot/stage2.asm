@@ -2,26 +2,25 @@
 ; EOS - stage 2 loader
 ; loaded by stage 1 at 0000:7E00, padded to 4 sectors
 ;
-; Modified: enter 64-bit long mode before calling the kernel.
-;
 ; NOTE:
-;   * the kernel at 0x1000 must be 64-bit code
-;   * first 1 GiB is identity mapped with 2 MiB pages
-;   * page tables are placed after stage2/kernel image
+;   * the kernel is temporarily loaded at 0x20000, then copied to 0x100000
+;   * first 4 GiB is identity mapped with 2 MiB pages
+;   * page tables are placed at a fixed safe location (0x80000)
 ; ===========================================================================
 BITS 16
 ORG 0x7E00
 
-%define KERNEL_OFF      0x1000          ; where the kernel is linked
-%define KERNEL_SEG      0x0100          ; 0x0100:0x0000 == physical 0x1000
-%define KERNEL_LBA      5               ; 1 stage1 + 4 stage2
-%define STACK_TOP       0x00090000      ; protected/long mode stack
+%define KERNEL_OFF      0x100000
+%define KERNEL_TMP_OFF  0x20000
+%define KERNEL_TMP_SEG  0x2000
+%define KERNEL_LBA      5
+%define STACK_TOP       0x00090000
 
-%ifndef KERNEL_SECTORS                  ; the Makefile should pass real value
+%ifndef KERNEL_SECTORS
 %define KERNEL_SECTORS 64
 %endif
 
-%assign KERNEL_END KERNEL_OFF + KERNEL_SECTORS * 512
+%assign KERNEL_END KERNEL_TMP_OFF + KERNEL_SECTORS * 512
 %assign STAGE2_END 0x7E00 + 4 * 512
 
 %if KERNEL_END > STAGE2_END
@@ -30,13 +29,16 @@ ORG 0x7E00
 %assign FREE_RAW STAGE2_END
 %endif
 
-%assign PT_BASE ((FREE_RAW + 0xFFF) & 0xFFFFF000)
+%assign PT_BASE 0x00080000
 %assign PML4    PT_BASE
 %assign PDPT    PT_BASE + 0x1000
-%assign PD      PT_BASE + 0x2000
+%assign PD0     PT_BASE + 0x2000
+%assign PD1     PT_BASE + 0x3000
+%assign PD2     PT_BASE + 0x4000
+%assign PD3     PT_BASE + 0x5000
 
-%if PT_BASE + 0x3000 > STACK_TOP
-%error "EOS stage2: kernel image too large for fixed page-table/stack layout"
+%if PD3 + 0x1000 > STACK_TOP
+%error "EOS stage2: page tables overlap with stack"
 %endif
 
 stage2:
@@ -45,7 +47,7 @@ stage2:
             mov     ds, ax
             mov     es, ax
             mov     ss, ax
-            mov     sp, 0x9000
+            mov     sp, 0x7C00
             sti
             cld
             mov     [boot_drive], dl
@@ -130,12 +132,12 @@ get_geometry:
             ret
 
 ; ===========================================================================
-; load_kernel - read KERNEL_SECTORS sectors from LBA KERNEL_LBA to 0x1000
+; load_kernel - read KERNEL_SECTORS sectors from LBA KERNEL_LBA to 
 ; ===========================================================================
 load_kernel:
             mov     word [cur_lba], KERNEL_LBA
             mov     word [left], KERNEL_SECTORS
-            mov     word [dst_seg], KERNEL_SEG
+            mov     word [dst_seg], KERNEL_TMP_SEG  ; 0x2000
 
 .next:
             cmp     word [left], 0
@@ -498,18 +500,6 @@ CODE64_SEG  equ gdt_code64 - gdt_start
 ; and far jump to 64-bit mode.
 ; ===========================================================================
 
-%assign PT_BASE ((FREE_RAW + 0xFFF) & 0xFFFFF000)
-%assign PML4    PT_BASE
-%assign PDPT    PT_BASE + 0x1000
-%assign PD0     PT_BASE + 0x2000
-%assign PD1     PT_BASE + 0x3000
-%assign PD2     PT_BASE + 0x4000
-%assign PD3     PT_BASE + 0x5000
-
-%if PD3 + 0x1000 > STACK_TOP
-%error "EOS stage2: not enough space for page tables"
-%endif
-
 BITS 32
 pm32_entry:
             mov     ax, DATA_SEG
@@ -522,61 +512,66 @@ pm32_entry:
             mov     ebp, esp
             cld
 
-            mov edi, PT_BASE
-            xor eax, eax
-            mov ecx, 0x6000 / 4
-            rep stosd
+            mov     esi, KERNEL_TMP_OFF
+            mov     edi, KERNEL_OFF
+            mov     ecx, KERNEL_SECTORS * 128
+            rep     movsd
+
+            mov     edi, PT_BASE
+            xor     eax, eax
+            mov     ecx, 0x6000 / 4
+            rep     stosd
 
             ; PML4[0] = PDPT
-            mov dword [PML4], PDPT + 7
-            mov dword [PML4 + 4], 0
+            mov     dword [PML4], PDPT + 7
+            mov     dword [PML4 + 4], 0
 
             ; PDPT[0..3] = PD0..PD3
-            mov dword [PDPT + 0],  PD0 + 7
-            mov dword [PDPT + 8],  PD1 + 7
-            mov dword [PDPT + 16], PD2 + 7
-            mov dword [PDPT + 24], PD3 + 7
-            mov dword [PDPT + 4],  0
-            mov dword [PDPT + 12], 0
-            mov dword [PDPT + 20], 0
-            mov dword [PDPT + 28], 0
+            mov     dword [PDPT + 0],  PD0 + 7
+            mov     dword [PDPT + 8],  PD1 + 7
+            mov     dword [PDPT + 16], PD2 + 7
+            mov     dword [PDPT + 24], PD3 + 7
+            mov     dword [PDPT + 4],  0
+            mov     dword [PDPT + 12], 0
+            mov     dword [PDPT + 20], 0
+            mov     dword [PDPT + 28], 0
 
-            mov edi, PD0
-            mov eax, 0x00000087   ; PRESENT | WRITABLE | PAGE_SIZE
-            mov ecx, 512
-        .fill0:
-            mov [edi], eax
-            add eax, 0x00200000
-            add edi, 8
-            loop .fill0
+            mov     edi, PD0
+            mov     eax, 0x00000087
+            mov     ecx, 512
+.fill0:
+            mov     [edi], eax
+            add     eax, 0x00200000
+            add     edi, 8
+            loop    .fill0
 
-            mov edi, PD1
-            mov ecx, 512
-        .fill1:
-            mov [edi], eax
-            add eax, 0x00200000
-            add edi, 8
-            loop .fill1
+            mov     edi, PD1
+            mov     ecx, 512
+.fill1:
+            mov     [edi], eax
+            add     eax, 0x00200000
+            add     edi, 8
+            loop    .fill1
 
-            mov edi, PD2
-            mov ecx, 512
-        .fill2:
-            mov [edi], eax
-            add eax, 0x00200000
-            add edi, 8
-            loop .fill2
+            mov     edi, PD2
+            mov     ecx, 512
+.fill2:
+            mov     [edi], eax
+            add     eax, 0x00200000
+            add     edi, 8
+            loop    .fill2
 
-            mov edi, PD3
-            mov ecx, 512
-        .fill3:
-            mov [edi], eax
-            add eax, 0x00200000
-            add edi, 8
-            loop .fill3
+            mov     edi, PD3
+            mov     ecx, 512
+.fill3:
+            mov     [edi], eax
+            add     eax, 0x00200000
+            add     edi, 8
+            loop    .fill3
 
             ; Enable PAE.
             mov     eax, cr4
-            or      eax, 0x20               ; CR4.PAE
+            or      eax, 0x20
             mov     cr4, eax
 
             ; Load page table base.
@@ -584,14 +579,14 @@ pm32_entry:
             mov     cr3, eax
 
             ; Enable long mode via EFER.LME.
-            mov     ecx, 0xC0000080         ; IA32_EFER
+            mov     ecx, 0xC0000080
             rdmsr
-            or      eax, 0x100              ; EFER.LME
+            or      eax, 0x100
             wrmsr
 
-            ; Enable paging. Protected mode is already enabled.
+            ; Enable paging.
             mov     eax, cr0
-            or      eax, 0x80000000         ; CR0.PG
+            or      eax, 0x80000000
             mov     cr0, eax
 
             ; Now enter true 64-bit mode.

@@ -50,10 +50,9 @@ boot/stage1.bin: boot/stage1.asm
 boot/stage2.bin: boot/stage2.asm kernel.bin
 	@SZ=$$(stat -c%s kernel.bin); SECT=$$(( ($$SZ + 511) / 512 )); \
 	 echo "kernel.bin = $$SZ bytes -> $$SECT sectors"; \
-	 if [ $$SECT -gt 55 ]; then \
-	   echo "kernel.bin is $$SZ bytes; it loads at 0x1000 and would run into"; \
-	   echo "stage 2's real-mode stack at 0x9000. Keep it under 26624 bytes,"; \
-	   echo "or move the load address / stack in boot/stage2.asm."; \
+	 if [ $$SECT -gt 250 ]; then \
+	   echo "kernel.bin is $$SZ bytes; it temporarily loads at 0x20000 and would run into"; \
+	   echo "stage 2. Keep it under ~125 KB for the real-mode load phase, or increase KERNEL_TMP_OFF."; \
 	   exit 1; \
 	 fi; \
 	 nasm $< -f bin -D KERNEL_SECTORS=$$SECT -o $@

@@ -3,6 +3,7 @@
 
 #include "../libc/stdint.h"
 #include "../libc/string.h"
+#include "vfs.h"
 
 #pragma pack(push, 1)
 
@@ -123,6 +124,8 @@ typedef struct {
     int      readonly;
 } ext2_fs_t;
 
+extern vfs_node_t* vfs_root; // vfs.c
+
 int ext2_mount(ext2_fs_t *fs);
 int ext2_sync(ext2_fs_t *fs);
 int ext2_read_file(ext2_fs_t *fs, uint32_t ino, uint64_t offset, void *dst, uint32_t len);
@@ -132,5 +135,11 @@ int ext2_unlink(ext2_fs_t *fs, uint32_t dir_ino, const char *name);
 int ext2_find_file(ext2_fs_t *fs, uint32_t dir_ino, const char *name, uint32_t *found_inode);
 int ext2_inode_read(ext2_fs_t *fs, uint32_t ino, ext2_inode_t *out);
 int ext2_inode_write(ext2_fs_t *fs, uint32_t ino, const ext2_inode_t *in);
+
+vfs_node_t *ext2_vfs_finddir(vfs_node_t *node, const char *name);
+int ext2_vfs_read(vfs_node_t *node, uint64_t offset, uint32_t size, char *buffer);
+int ext2_vfs_write(vfs_node_t *node, uint64_t offset, uint32_t size, const char* buffer);
+vfs_node_t *ext2_vfs_create(vfs_node_t *parent, const char *name); 
+int vfs_mount_ext2_root(void);
 
 #endif

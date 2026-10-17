@@ -13,6 +13,7 @@
 #include "../libc/stdint.h"
 #include "../drivers/ahci.h"
 #include "../fs/ext2.h"
+#include "../fs/vfs.h"
 
 volatile char _current_char = '\0';
 volatile char _is_current_task_foreground = 0;
@@ -89,6 +90,46 @@ void shell(void* arg)
 
 ext2_fs_t fs;
 
+void r()
+{
+    vfs_file_t *file = vfs_open("/test.txt", 0);
+    if (!file)
+    {
+        print("no such file\n");
+        return;
+    }
+
+    char buffer[512];
+    int bytes_read;
+
+    bytes_read = vfs_read(file, buffer, sizeof(buffer));
+    buffer[bytes_read - 1] = '\0';
+    print(buffer);
+    print("\n");
+    
+    vfs_close(file);
+}
+
+void w()
+{
+    vfs_file_t *file = vfs_open("/test.txt", O_CREAT | O_WRONLY);
+    if (!file)
+    {
+        print("failed to create file\n");
+        return;
+    }
+
+    char *msg = "Hello world";
+    int res = vfs_write(file, msg, strlen(msg));
+    if (res < 0)
+    {
+        print("failed to write");
+        return;
+    }
+
+    vfs_close(file);
+}
+
 void kernel_main() {
 
     gdt_init();
@@ -114,7 +155,9 @@ void kernel_main() {
         __asm__ volatile("hlt");
     }
 
-    res = ext2_mount(&fs);
+    vfs_init();
+
+    res = vfs_mount_ext2_root();
     if (res != 0)
     {
         krnl_print("failed to mount ext2 with err code: ");
@@ -243,6 +286,14 @@ void exec(char* cmd) {
 
     else if(strcmp(first_word, "test") == 0){
         task_create((void*)test, 0, 1, 1);
+    }
+
+    
+    else if(strcmp(first_word, "read") == 0){
+        r();
+    }
+    else if(strcmp(first_word, "write") == 0){
+        w();
     }
 
     else {

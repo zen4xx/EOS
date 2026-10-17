@@ -1,6 +1,6 @@
 /* EOS kernel layout
  *
- * The kernel is linked at physical/virtual 0x1000.
+ * The kernel is linked at physical/virtual 0x100000.
  * stage2 identity-maps the first 1 GiB, so 0x1000 is directly usable.
  */
 
@@ -18,7 +18,7 @@ PHDRS
 
 SECTIONS
 {
-    . = 0x1000;
+    . = 0x100000;
 
     .text : {
         KEEP(*(.text.boot))      /* _start must be the very first byte */
