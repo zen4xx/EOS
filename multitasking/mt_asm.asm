@@ -91,7 +91,8 @@ start_task:
 ;   When a new task is scheduled for the first time, iretq
 ;   lands here. The initial irq_frame placed:
 ;     r12 = entry point
-;     r13 = argument
+;     r13 = argc
+;     r14 = argv
 ;
 ;   System V ABI requires first argument in RDI.
 ; ==========================================================
@@ -100,7 +101,9 @@ extern task_exit
 
 global task_start
 task_start:
-    mov rdi, r13        ; arg1 = argument
+    mov rdi, r13        ; argc
+    mov rsi, r14        ; argv
+    
     call r12            ; entry(arg)
 
     ; If the task function returns, cleanly exit the task

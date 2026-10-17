@@ -1,6 +1,7 @@
 #include "mt.h"
 #include "../libc/stdlib.h"
 #include "../libc/memory.h"
+#include "../libc/string.h"
 #include "../libc/stdint.h"
 #include "../cpu/gdt.h"
 
@@ -29,6 +30,8 @@ struct task {
     void *user_stack;
     uint64_t stack_size;
     char is_fg;
+    int argc;
+    char **argv; // memory for arguments
 };
 
 struct irq_frame {
@@ -144,7 +147,7 @@ void task_exit(void)
     }
 }
 
-int task_create_ex(void (*entry)(void *), void *arg, uint64_t stack_size, char is_foreground, char is_user_space)
+int task_create_ex(void (*entry)(int, char**), int argc, char** argv, uint64_t stack_size, char is_foreground, char is_user_space)
 {
     if (entry == 0) return -1;
 
@@ -168,7 +171,7 @@ int task_create_ex(void (*entry)(void *), void *arg, uint64_t stack_size, char i
     void *kstack = TASK_ALLOC(alloc_size);
     if (!kstack) {
         exit_critical(flags);
-        return -1;
+        return -2;
     }
     uint64_t ktop = ((uint64_t)kstack + stack_size) & ~15ULL;
     uint64_t utop = 0;
@@ -179,7 +182,7 @@ int task_create_ex(void (*entry)(void *), void *arg, uint64_t stack_size, char i
         if (!ustack)
         {
             exit_critical(flags);
-            return -1;
+            return -2;
         }
         utop = ((uint64_t)ustack + stack_size) & ~15ULL;
     }
@@ -188,7 +191,39 @@ int task_create_ex(void (*entry)(void *), void *arg, uint64_t stack_size, char i
     memset(f, 0, sizeof(struct irq_frame));
 
     f->r12 = (uint64_t)entry;
-    f->r13 = (uint64_t)arg;
+    f->r13 = (uint64_t)argc;
+
+    char **task_argv = NULL;
+
+    if (argc > 0)
+    {
+        task_argv = malloc(argc * sizeof(char*));
+        if (task_argv)
+        {
+            for (int i = 0; i < argc; ++i)
+            {
+                size_t len = strlen(argv[i]) + 1; // +1 for '\0'
+                task_argv[i] = malloc(len);
+                if (!task_argv[i])
+                {
+                    for (int j = 0; j < i; ++j) // delete everything that was just created
+                    {
+                        free(task_argv[j]);
+                    }
+                    free(task_argv);
+                    task_argv = NULL;
+                    goto argv_fail;
+                }
+                memcpy(task_argv[i], argv[i], len); // copying to new array
+            }
+        }
+    }
+
+argv_fail:
+
+
+
+    f->r14 = (uint64_t)task_argv;
 
     f->rip = (uint64_t)task_start;
     
@@ -213,6 +248,8 @@ int task_create_ex(void (*entry)(void *), void *arg, uint64_t stack_size, char i
     tasks[i].kernel_stack = kstack;
     tasks[i].user_stack = ustack;
     tasks[i].stack_size = alloc_size;
+    tasks[i].argv = task_argv;
+    tasks[i].argc = argc;
 
     if (num_fg_task == 0) {
         tasks[i].is_fg = is_foreground;
@@ -227,9 +264,9 @@ int task_create_ex(void (*entry)(void *), void *arg, uint64_t stack_size, char i
     return i;
 }
 
-int task_create(void (*entry)(void *), void *arg, char is_foreground, char is_user_space)
+int task_create(void (*entry)(int, char**), int argc, char** argv, char is_foreground, char is_user_space)
 {
-    return task_create_ex(entry, arg, TASK_STACK_SIZE, is_foreground, is_user_space);
+    return task_create_ex(entry, argc, argv, TASK_STACK_SIZE, is_foreground, is_user_space);
 }
 
 void task_reap(void)
@@ -252,6 +289,15 @@ void task_reap(void)
             tasks[i].kernel_rsp = 0;
             tasks[i].kernel_stack_top = 0;
             tasks[i].state = TASK_FREE;
+
+            if (tasks[i].argv)
+            {
+                for (int j = 0; j < tasks[i].argc; ++j)
+                {
+                    free(tasks[i].argv[j]);
+                }
+                free(tasks[i].argv);
+            }
         }
     }
 

@@ -15,20 +15,33 @@
 #include "../libc/power.h"
 
 
-void idle_task(void *arg)
+void idle_task(int argc, char **argv)
 {
-    (void)arg;
     while (1) {
         task_reap();
         yield();
     }
 }
 
-void test(void *arg)
+void test(int argc, char **argv)
 {
     char c = '0';
     int i = 0;
     char str[10];
+
+    if (argc > 0)
+    {
+        print("argv:\n");
+        for (int i = 0; i < argc; ++i)
+        {
+            char istr[10];
+            itoa(i, istr);
+            print(istr);
+            print(": ");
+            print(argv[i]);
+            print("\n");
+        }
+    }
 
     print("Enter your name: ");
 
@@ -64,7 +77,7 @@ void ls()
     print("\n");
 }
 
-void shell(void* arg)
+void shell(int argc, char **argv)
 {
     while (1)
     {
@@ -215,7 +228,11 @@ void exec(char* cmd) {
     }
 
     else if(strcmp(first_word, "test") == 0){
-        task_create((void*)test, 0, 1, 1);
+        int argc = vect_get_size(&cmds);
+        if (argc > 1)
+            task_create((void*)test, vect_get_size(&cmds), (char**)cmds.arr, 1, 1);
+        else
+            task_create((void*)test, 0, 0, 1, 1); 
     }
         
     else if(strcmp(first_word, "ls") == 0){
