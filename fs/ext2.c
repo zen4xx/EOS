@@ -449,12 +449,14 @@ int ext2_create_file(ext2_fs_t *fs, uint32_t dir_inode_num, const char *name, ui
     while (offset < fs->block_size) {
         ext2_dir_entry_t *entry = (ext2_dir_entry_t *)(dir_b->data + offset);
         if (entry->rec_len == 0) break;
+       
+        uint32_t real_len = (8 + entry->name_len + 3) & ~3;
         
-        if (entry->rec_len >= needed_len + 8) {
-            uint32_t new_rec_len = entry->rec_len - needed_len;
-            entry->rec_len = needed_len;
+          if (entry->rec_len >= real_len + needed_len) {
+            uint32_t new_rec_len = entry->rec_len - real_len;
+            entry->rec_len = real_len;
             
-            ext2_dir_entry_t *new_entry = (ext2_dir_entry_t *)(dir_b->data + offset + needed_len);
+            ext2_dir_entry_t *new_entry = (ext2_dir_entry_t *)(dir_b->data + offset + real_len);
             new_entry->inode = free_inode;
             new_entry->rec_len = new_rec_len;
             new_entry->name_len = name_str_len;
@@ -470,6 +472,9 @@ int ext2_create_file(ext2_fs_t *fs, uint32_t dir_inode_num, const char *name, ui
     }
     
     brelse(dir_b);
+
+    ext2_free_block(fs, free_block);
+    ext2_free_inode(fs, free_inode);
     return -9;
 }
 

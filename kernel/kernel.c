@@ -15,8 +15,6 @@
 volatile char _current_char = '\0';
 volatile char _is_current_task_foreground = 0;
 
-ext2_fs_t fs;
-
 void kernel_main() {
 
     gdt_init();
