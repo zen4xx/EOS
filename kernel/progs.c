@@ -181,9 +181,9 @@ void shell(int argc, char **argv)
 
         char buf[256];
         vfs_get_cwd(buf, 256);
-        print("[");
+        print("[ ");
         print(buf);
-        print("]>");
+        print(" ]>");
 
 
         char str[INPUT_BUF_SIZE];
