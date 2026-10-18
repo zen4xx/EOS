@@ -67,6 +67,7 @@ vfs_file_t *vfs_open(const char *path, uint32_t flags);
 vfs_node_t *vfs_mkdir(const char *path);
 int vfs_readdir(const char *path, uint32_t index, vfs_dirent_t *dirent);
 int vfs_change_cwd(const char *path);
+int vfs_get_cwd(char *dst, uint32_t size);
 int vfs_read(vfs_file_t *file, char *buffer, uint32_t size);
 int vfs_write(vfs_file_t *file, const char *buffer, uint32_t size);
 void vfs_close(vfs_file_t *file);

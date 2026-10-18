@@ -636,3 +636,19 @@ void vfs_close(vfs_file_t *file)
 
     free(file);
 }
+
+int vfs_get_cwd(char *dst, uint32_t size)
+{
+    if (!dst)  return -1;
+    
+    uint32_t real_size = size - 1;
+    uint32_t cwd_path = strlen(vfs_cwd_path);
+    if (cwd_path < size)
+    {
+        real_size = cwd_path;
+    }
+    memcpy(dst, vfs_cwd_path, real_size);
+    dst[real_size+1] = '\0';
+
+    return real_size;
+}
