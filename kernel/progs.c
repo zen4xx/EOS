@@ -67,14 +67,36 @@ void ls()
         if (dirent.flags & VFS_FLAG_DIRECTORY) {
             print("/");
             print(dirent.name);
-        } else {
             print("  ");
+        } else {
             print(dirent.name);
+            print("  ");
         }
         index++;
     }
 
     print("\n");
+}
+
+void write(int argc, char **argv)
+{
+    vfs_file_t *file = vfs_open(argv[1], O_CREAT | O_WRONLY);
+    vfs_write(file, argv[2], strlen(argv[2]) + 1);
+}
+
+void cat(int argc, char **argv)
+{
+    vfs_file_t *file = vfs_open(argv[1], O_RDONLY);
+    char buf[256];
+    int bytes = vfs_read(file, buf, 256);
+    buf[bytes] = '\0';
+    print(buf);
+    print("\n");
+}
+
+void mkdir(int argc, char **argv)
+{
+    vfs_mkdir(argv[1]);
 }
 
 void shell(int argc, char **argv)
@@ -237,6 +259,18 @@ void exec(char* cmd) {
         
     else if(strcmp(first_word, "ls") == 0){
         ls();
+    }
+
+    else if(strcmp(first_word, "write") == 0){
+        task_create(write, vect_get_size(&cmds), (char**)cmds.arr, 1, 0);
+    }
+    
+    else if(strcmp(first_word, "cat") == 0){
+        task_create(cat, vect_get_size(&cmds), (char**)cmds.arr, 1, 0);
+    }
+
+    else if(strcmp(first_word, "mkdir") == 0){
+        task_create(mkdir, vect_get_size(&cmds), (char**)cmds.arr, 1, 0);
     }
 
     else {
