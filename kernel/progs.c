@@ -7,7 +7,6 @@
 #include "../drivers/screen.h"
 #include "../libc/string.h"
 #include "../libc/stdint.h"
-#include "../fs/ext2.h"
 #include "../fs/vfs.h"
 #include "../libc/stdlib.h"
 #include "../libc/stdio.h"

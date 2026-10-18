@@ -2,7 +2,7 @@
 #include "../drivers/ahci.h"
 #include "../libc/memory.h"
 
-#define BUF_COUNT 64
+#define BUF_COUNT 256
 #define BUF_SIZE  4096
 
 static buf_t bufs[BUF_COUNT];

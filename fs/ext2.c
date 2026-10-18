@@ -149,7 +149,7 @@ void ext2_free_inode(ext2_fs_t *fs, uint32_t ino)
 }
 
 static int map_indirect(ext2_fs_t *fs, uint32_t table_blk,
-                        uint32_t idx, int create, uint32_t *out)
+                        uint32_t idx, int create, uint32_t *out, ext2_inode_t *in)
 {
     buf_t *b = bread(table_blk, fs->block_size);
     if (!b) return -1;
@@ -178,6 +178,8 @@ static int map_indirect(ext2_fs_t *fs, uint32_t table_blk,
     brelse(zb);
 
     arr[idx] = nb;
+    in->i_blocks += fs->block_size / 512;
+    
     bdirty(b);
     brelse(b);
 
@@ -204,7 +206,7 @@ static int map_slot(ext2_fs_t *fs, ext2_inode_t *in, int slot,
         in->i_block[slot] = nb;
         in->i_blocks += fs->block_size / 512;
     }
-    return map_indirect(fs, in->i_block[slot], idx, create, out);
+    return map_indirect(fs, in->i_block[slot], idx, create, out, in);
 }
 
 static void free_block_tree(ext2_fs_t *fs, uint32_t blk, int depth) {
@@ -260,7 +262,7 @@ int ext2_bmap(ext2_fs_t *fs, ext2_inode_t *in,
         uint32_t mid;
         int r = map_slot(fs, in, 13, i / p, create, &mid);
         if (r || !mid) { *out = 0; return r; }
-        return map_indirect(fs, mid, i % p, create, out);
+        return map_indirect(fs, mid, i % p, create, out, in);
     }
     i -= p * p;
 
@@ -269,10 +271,10 @@ int ext2_bmap(ext2_fs_t *fs, ext2_inode_t *in,
     if (r || !top) { *out = 0; return r; }
 
     uint32_t mid;
-    r = map_indirect(fs, top, (i / p) % p, create, &mid);
+    r = map_indirect(fs, top, (i / p) % p, create, &mid, in);
     if (r || !mid) { *out = 0; return r; }
 
-    return map_indirect(fs, mid, i % p, create, out);
+    return map_indirect(fs, mid, i % p, create, out, in);
 }
 
 int ext2_inode_read(ext2_fs_t *fs, uint32_t ino, ext2_inode_t *out)
@@ -428,6 +430,8 @@ int ext2_find_file(ext2_fs_t *fs, uint32_t dir_inode_num, const char *name, uint
         int found = 0;
         while (block_offset < fs->block_size) {
             ext2_dir_entry_t *entry = (ext2_dir_entry_t *)(b->data + block_offset);
+            if (entry->rec_len < 8 || (entry->rec_len % 4) != 0) break;
+            if (block_offset + entry->rec_len > fs->block_size) break;
             if (entry->rec_len == 0) break;
             
             if (entry->name_len == name_len && memcmp(entry->name, name, name_len) == 0) {
@@ -467,7 +471,7 @@ static int insert_dir_entry(ext2_fs_t *fs, ext2_inode_t *dir_inode, uint32_t dir
             ext2_dir_entry_t *entry = (ext2_dir_entry_t *)(dir_b->data + offset);
             if (entry->rec_len == 0) break;
            
-            uint32_t real_len = (8 + entry->name_len + 3) & ~3;
+            uint32_t real_len = (entry->inode != 0) ? ((8 + entry->name_len + 3) & ~3) : 0;
             
             if (entry->rec_len >= real_len + needed_len) {
                 uint32_t new_rec_len = entry->rec_len - real_len;
@@ -489,13 +493,9 @@ static int insert_dir_entry(ext2_fs_t *fs, ext2_inode_t *dir_inode, uint32_t dir
         brelse(dir_b);
     }
     
-    uint32_t new_blk = ext2_alloc_block(fs);
-    if (!new_blk) return -1;
-    
     uint32_t new_lblk = dir_inode->i_size / fs->block_size;
     uint32_t phys;
     if (ext2_bmap(fs, dir_inode, new_lblk, 1, &phys) != 0) {
-        ext2_free_block(fs, new_blk);
         return -1;
     }
     
@@ -503,13 +503,11 @@ static int insert_dir_entry(ext2_fs_t *fs, ext2_inode_t *dir_inode, uint32_t dir
     dir_inode->i_blocks += fs->block_size / 512;
     
     if (ext2_inode_write(fs, dir_ino, dir_inode) != 0) {
-        ext2_free_block(fs, new_blk);
         return -1;
     }
     
     buf_t *new_b = bnew(phys, fs->block_size);
     if (!new_b) {
-        ext2_free_block(fs, new_blk);
         return -1;
     }
     
@@ -588,9 +586,7 @@ int ext2_write_file(ext2_fs_t *fs, uint32_t ino, uint64_t offset, const void *sr
         uint32_t phys;
         if (ext2_bmap(fs, &in, lblk, 1, &phys)) goto fail;
 
-        buf_t *b = (within == 0 && chunk == bs)
-                 ? bnew(phys, bs)
-                 : bread(phys, bs);
+        buf_t *b = bread(phys, bs);
         if (!b) goto fail;
 
         memcpy(b->data + within, (void*)(in_buf + done), chunk);
@@ -776,6 +772,8 @@ int ext2_readdir(ext2_fs_t *fs, uint32_t dir_inode_num, uint32_t index, vfs_dire
         uint32_t block_offset = within;
         while (block_offset < fs->block_size) {
             ext2_dir_entry_t *entry = (ext2_dir_entry_t *)(b->data + block_offset);
+            if (entry->rec_len < 8 || (entry->rec_len % 4) != 0) break;
+            if (block_offset + entry->rec_len > fs->block_size) break;
             if (entry->rec_len == 0) break;
             
             if (entry->inode == 0) {
@@ -841,7 +839,9 @@ vfs_node_t *ext2_vfs_finddir(vfs_node_t *node, const char *name)
     
     memset(new_node, 0, sizeof(vfs_node_t));
     
-    strncpy(new_node->name, name, sizeof(new_node->name));
+    strncpy(new_node->name, name, sizeof(new_node->name) - 1);
+    new_node->name[sizeof(new_node->name) - 1] = '\0';
+    
     new_node->inode = found_ino;
     new_node->size = in.i_size;
     new_node->parent = node;
@@ -927,6 +927,7 @@ int vfs_mount_ext2_root(void)
     ext2_root->inode = 2; /* Root inode is always 2 in EXT2 */
     ext2_root->device = fs;
     ext2_root->parent = ext2_root;
+    ext2_root->ref_count = 1;
     
     ext2_root->ops = &ext2_vfs_ops;
 
@@ -956,7 +957,8 @@ vfs_node_t *ext2_vfs_create(vfs_node_t *parent, const char *name)
     if (!new_node) return NULL;
     
     memset(new_node, 0, sizeof(vfs_node_t));
-    strncpy(new_node->name, name, sizeof(new_node->name));
+    strncpy(new_node->name, name, sizeof(new_node->name) - 1);
+    new_node->name[sizeof(new_node->name) - 1] = '\0';
     new_node->inode = new_inode;
     new_node->flags = VFS_FLAG_FILE;
     new_node->size = 0;
@@ -984,7 +986,8 @@ vfs_node_t *ext2_vfs_mkdir(vfs_node_t *parent, const char *name)
     if (!new_node) return NULL;
     
     memset(new_node, 0, sizeof(vfs_node_t));
-    strncpy(new_node->name, name, sizeof(new_node->name));
+    strncpy(new_node->name, name, sizeof(new_node->name) - 1);
+    new_node->name[sizeof(new_node->name) - 1] = '\0';
     new_node->inode = new_inode;
     new_node->flags = VFS_FLAG_DIRECTORY;
     new_node->size = fs->block_size;

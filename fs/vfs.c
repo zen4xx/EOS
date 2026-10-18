@@ -21,6 +21,9 @@ static vfs_node_t *vfs_follow_mount(vfs_node_t *node)
         if (next == node)
             break;
 
+        vfs_node_hold(next);
+        vfs_node_release(node);
+        
         node = next;
     }
 
@@ -228,24 +231,16 @@ static vfs_node_t *vfs_namei_normalized(const char *path)
     return current;
 }
 
-static void vfs_attach_node(vfs_node_t *node,
-                            vfs_node_t *parent,
-                            const char *name)
+static void vfs_attach_node(vfs_node_t *node, vfs_node_t *parent, const char *name)
 {
-    if (!node)
-        return;
-
-    if (!node->parent)
-        node->parent = parent;
+    if (!node) return;
 
     if (name && node->name[0] == '\0') {
         uint32_t i = 0;
-
         while (i < VFS_MAX_NAME - 1 && name[i]) {
             node->name[i] = name[i];
             i++;
         }
-
         node->name[i] = '\0';
     }
 }
@@ -261,12 +256,17 @@ void vfs_node_release(vfs_node_t *node)
 {
     if (!node) return;
     
-    if (node->ref_count > 0) {
-        node->ref_count--;
+    if (node->ref_count == 0) {
+        return; 
     }
+    
+    node->ref_count--;
     
     if (node->ref_count == 0 && node != vfs_root) {
         vfs_node_t *parent = node->parent;
+        
+        node->ops = NULL;
+        node->parent = NULL;
         
         free(node);
         
@@ -356,9 +356,8 @@ vfs_file_t *vfs_open(const char *path, uint32_t flags)
 
     vfs_node_t *node = vfs_namei_normalized(normalized);
 
-    if (node &&
-        (flags & O_CREAT) &&
-        (flags & O_EXCL)) {
+    if (node && (flags & O_CREAT) && (flags & O_EXCL)) {
+        vfs_node_release(node);
         return NULL;
     }
 
@@ -397,6 +396,8 @@ vfs_file_t *vfs_open(const char *path, uint32_t flags)
         }
 
         vfs_attach_node(node, parent, filename);
+
+        vfs_node_release(parent);
     }
 
     if (!node)
@@ -529,7 +530,10 @@ vfs_node_t *vfs_mkdir(const char *path)
     vfs_node_t *existing = vfs_namei_normalized(normalized);
 
     if (existing)
+    {
+        vfs_node_release(existing);
         return NULL;
+    }
 
     char parent_path[VFS_MAX_PATH];
     char dirname[VFS_MAX_NAME];
@@ -559,6 +563,7 @@ vfs_node_t *vfs_mkdir(const char *path)
 
     dir->ops->sync(dir);
 
+    vfs_node_release(parent);
     return dir;
 }
 
@@ -613,19 +618,21 @@ int vfs_change_cwd(const char *path)
     
     vfs_node_release(vfs_cwd);
     vfs_cwd = dir;
-    vfs_node_hold(vfs_cwd);
 
     return 0;
 }
 
 void vfs_close(vfs_file_t *file)
 {
-    if (!file)
-        return;
+    if (!file) return;
     
-    file->node->ops->sync(file->node);
-
-    vfs_node_hold(file->node);
+    if (file->node) {
+        if (file->node->ops && file->node->ops->sync) {
+            file->node->ops->sync(file->node);
+        }
+        vfs_node_release(file->node);
+        file->node = NULL;
+    }
 
     free(file);
 }

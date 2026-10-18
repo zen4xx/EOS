@@ -4,13 +4,14 @@
 #include "../cpu/types.h"
 #include "../libc/memory.h"
 #include "../libc/error.h"
-
 typedef struct Block {
     size_t size;
-    u8     is_free;        
+    int is_free;
     u32 magic;
-    struct Block* next;    
-    struct Block* prev;    
+    struct Block* phys_prev;
+    struct Block* phys_next;
+    struct Block* free_prev;
+    struct Block* free_next;
 } __attribute__((aligned(16))) Block;
 
 void   init_allocator(void);
