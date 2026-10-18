@@ -94,6 +94,6 @@ debug: eos.img kernel.elf
 	$(GDB) -ex "target remote localhost:1234" -ex "symbol-file kernel.elf"
 
 clean:
-	rm -f eos.img os-image.bin kernel.bin kernel.elf
+	rm -f eos.img os-image.bin kernel.bin kernel.elf ext2_disk.img
 	rm -f boot/*.bin boot/*.o kernel/*.o drivers/*.o cpu/*.o libc/*.o \
 	      syscall/*.o multitasking/*.o

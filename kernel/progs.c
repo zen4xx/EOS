@@ -58,20 +58,21 @@ void test(int argc, char **argv)
 
 extern vfs_node_t* vfs_cwd;
 
-void ls()
+void ls(void)
 {
     vfs_dirent_t dirent;
     uint32_t index = 0;
 
-    while (vfs_readdir(vfs_cwd->name, index, &dirent) == 0) {
-        if (dirent.flags & VFS_FLAG_DIRECTORY) {
+    while (vfs_readdir(".", index, &dirent) == 0) {
+        dirent.name[VFS_MAX_NAME - 1] = '\0';
+
+        print(dirent.name);
+
+        if (dirent.flags & VFS_FLAG_DIRECTORY)
             print("/");
-            print(dirent.name);
-            print("  ");
-        } else {
-            print(dirent.name);
-            print("  ");
-        }
+
+        print("  ");
+
         index++;
     }
 
@@ -80,23 +81,94 @@ void ls()
 
 void write(int argc, char **argv)
 {
-    vfs_file_t *file = vfs_open(argv[1], O_CREAT | O_WRONLY);
-    vfs_write(file, argv[2], strlen(argv[2]) + 1);
+    if (argc < 3 || !argv[1] || !argv[2]) {
+        print("usage: write <file> <text>\n");
+        return;
+    }
+
+    vfs_file_t *file = vfs_open(argv[1], O_WRONLY | O_CREAT | O_TRUNC);
+
+    if (!file) {
+        print("write: cannot open file\n");
+        return;
+    }
+
+    uint32_t len = (uint32_t)strlen(argv[2]);
+
+    int written = vfs_write(file, argv[2], len);
+
+    if (written < 0 || (uint32_t)written != len) {
+        print("write: write error\n");
+    }
+
+    vfs_close(file);
 }
 
 void cat(int argc, char **argv)
 {
+    if (argc < 2 || !argv[1]) {
+        print("usage: cat <file>\n");
+        return;
+    }
+
     vfs_file_t *file = vfs_open(argv[1], O_RDONLY);
-    char buf[256];
-    int bytes = vfs_read(file, buf, 256);
-    buf[bytes] = '\0';
-    print(buf);
+
+    if (!file) {
+        print("cat: cannot open file\n");
+        return;
+    }
+
+    if (file->node && (file->node->flags & VFS_FLAG_DIRECTORY)) {
+        print("cat: is a directory\n");
+        vfs_close(file);
+        return;
+    }
+
+    char buf[257];
+
+    while (1) {
+        int bytes = vfs_read(file, buf, sizeof(buf) - 1);
+
+        if (bytes < 0) {
+            print("cat: read error\n");
+            break;
+        }
+
+        if (bytes == 0)
+            break;
+
+        buf[bytes] = '\0';
+        print(buf);
+    }
+
     print("\n");
+
+    vfs_close(file);
+}
+
+void cd(int argc, char **argv)
+{
+    if (argc < 2 || !argv[1])
+    {
+        print("usage: cd <directory>\n");
+        return;
+    }
+
+    vfs_change_cwd(argv[1]);
 }
 
 void mkdir(int argc, char **argv)
 {
-    vfs_mkdir(argv[1]);
+    if (argc < 2 || !argv[1]) {
+        print("usage: mkdir <directory>\n");
+        return;
+    }
+
+    vfs_node_t *dir = vfs_mkdir(argv[1]);
+
+    if (!dir) {
+        print("mkdir: cannot create directory\n");
+    }
 }
 
 void shell(int argc, char **argv)
@@ -267,6 +339,10 @@ void exec(char* cmd) {
     
     else if(strcmp(first_word, "cat") == 0){
         task_create(cat, vect_get_size(&cmds), (char**)cmds.arr, 1, 0);
+    }
+
+    else if(strcmp(first_word, "cd") == 0){
+        task_create(cd, vect_get_size(&cmds), (char**)cmds.arr, 1, 0);
     }
 
     else if(strcmp(first_word, "mkdir") == 0){

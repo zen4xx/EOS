@@ -107,6 +107,8 @@ typedef struct {
 #define EXT2_S_IFDIR 0x4000
 #define EXT2_S_IFREG 0x8000
 
+#define EXT2_FT_DIR 2
+
 typedef struct {
     ext2_superblock_t sb;
 
@@ -124,8 +126,8 @@ typedef struct {
     int      readonly;
 } ext2_fs_t;
 
-extern vfs_node_t* vfs_root; // vfs.c
-extern vfs_node_t* vfs_cwd;  // vfs.c
+extern vfs_node_t* vfs_root; 
+extern vfs_node_t* vfs_cwd;  
 
 int ext2_mount(ext2_fs_t *fs);
 int ext2_sync(ext2_fs_t *fs);
@@ -144,6 +146,8 @@ int ext2_vfs_readdir(vfs_node_t *node, uint32_t index, vfs_dirent_t *dirent);
 int ext2_vfs_read(vfs_node_t *node, uint64_t offset, uint32_t size, char *buffer);
 int ext2_vfs_write(vfs_node_t *node, uint64_t offset, uint32_t size, const char* buffer);
 vfs_node_t *ext2_vfs_create(vfs_node_t *parent, const char *name);
+int ext2_vfs_truncate(vfs_node_t *node);
+int ext2_vfs_sync(vfs_node_t *node);
 int vfs_mount_ext2_root(void);
 
 #endif

@@ -7,6 +7,17 @@
 
 #define EXT2_SUPERBLOCK_OFFSET_LBA 2
 
+static vfs_ops_t ext2_vfs_ops = {
+    .read = ext2_vfs_read,
+    .write = ext2_vfs_write,
+    .finddir = ext2_vfs_finddir,
+    .create = ext2_vfs_create,
+    .mkdir = ext2_vfs_mkdir,
+    .readdir = ext2_vfs_readdir,
+    .truncate = ext2_vfs_truncate,
+    .sync = ext2_vfs_sync
+};
+
 static buf_t *group_desc(ext2_fs_t *fs, uint32_t g, ext2_group_desc_t **out)
 {
     if (g >= fs->groups) return 0;
@@ -45,12 +56,14 @@ uint32_t ext2_alloc_block(ext2_fs_t *fs)
         buf_t *bb = bread(gd->bg_block_bitmap, fs->block_size);
         if (!bb) { brelse(gb); return 0; }
 
-        uint32_t base  = g * fs->blocks_per_group;
-        uint32_t avail = fs->sb.s_blocks_count - fs->first_data - base;
-        if (avail > fs->blocks_per_group) avail = fs->blocks_per_group;
+        uint32_t limit = fs->blocks_per_group;
+        if (g == fs->groups - 1) {
+            uint32_t total = fs->sb.s_blocks_count - fs->first_data;
+            limit = total - (g * fs->blocks_per_group);
+        }
 
         uint32_t found = 0xFFFFFFFF;
-        for (uint32_t i = 0; i < avail; i++) {
+        for (uint32_t i = 0; i < limit; i++) {
             if (!bit_get(bb->data, i)) { found = i; break; }
         }
 
@@ -69,7 +82,7 @@ uint32_t ext2_alloc_block(ext2_fs_t *fs)
         brelse(bb);
         brelse(gb);
 
-        return fs->first_data + base + found;
+        return fs->first_data + (g * fs->blocks_per_group) + found;
     }
     return 0;
 }
@@ -159,6 +172,9 @@ static int map_indirect(ext2_fs_t *fs, uint32_t table_blk,
 
     buf_t *zb = bnew(nb, fs->block_size);
     if (!zb) { ext2_free_block(fs, nb); brelse(b); return -1; }
+    
+    memset(zb->data, 0, fs->block_size);
+    bdirty(zb);
     brelse(zb);
 
     arr[idx] = nb;
@@ -180,12 +196,34 @@ static int map_slot(ext2_fs_t *fs, ext2_inode_t *in, int slot,
 
         buf_t *zb = bnew(nb, fs->block_size);
         if (!zb) { ext2_free_block(fs, nb); return -1; }
+        
+        memset(zb->data, 0, fs->block_size);
+        bdirty(zb);
         brelse(zb);
 
         in->i_block[slot] = nb;
         in->i_blocks += fs->block_size / 512;
     }
     return map_indirect(fs, in->i_block[slot], idx, create, out);
+}
+
+static void free_block_tree(ext2_fs_t *fs, uint32_t blk, int depth) {
+    if (!blk) return;
+    if (depth == 0) {
+        ext2_free_block(fs, blk);
+        return;
+    }
+    buf_t *b = bread(blk, fs->block_size);
+    if (!b) return;
+    uint32_t *arr = (uint32_t *)b->data;
+    uint32_t count = fs->block_size / 4;
+    for (uint32_t i = 0; i < count; i++) {
+        if (arr[i]) {
+            free_block_tree(fs, arr[i], depth - 1);
+        }
+    }
+    brelse(b);
+    ext2_free_block(fs, blk);
 }
 
 int ext2_bmap(ext2_fs_t *fs, ext2_inode_t *in,
@@ -202,6 +240,8 @@ int ext2_bmap(ext2_fs_t *fs, ext2_inode_t *in,
 
         buf_t *zb = bnew(nb, fs->block_size);
         if (!zb) { ext2_free_block(fs, nb); return -1; }
+        memset(zb->data, 0, fs->block_size);
+        bdirty(zb);
         brelse(zb);
 
         in->i_block[lblk] = nb;
@@ -308,7 +348,7 @@ int ext2_read_file(ext2_fs_t *fs, uint32_t ino, uint64_t offset, void *dst, uint
         if (ext2_bmap(fs, &in, lblk, 0, &phys)) return -1;
 
         if (!phys) {
-            memset(out + done, 0, chunk);      /* sparse hole */
+            memset(out + done, 0, chunk);
         } else {
             buf_t *b = bread(phys, bs);
             if (!b) return -1;
@@ -406,6 +446,87 @@ int ext2_find_file(ext2_fs_t *fs, uint32_t dir_inode_num, const char *name, uint
     return -4;
 }
 
+static int insert_dir_entry(ext2_fs_t *fs, ext2_inode_t *dir_inode, uint32_t dir_ino, 
+                            uint32_t new_ino, const char *name, uint8_t file_type) 
+{
+    uint32_t name_str_len = (uint32_t)strlen(name);
+    uint32_t needed_len = (8 + name_str_len + 3) & ~3;
+    
+    uint32_t dir_blocks = (dir_inode->i_size + fs->block_size - 1) / fs->block_size;
+    if (dir_blocks == 0) dir_blocks = 1;
+    
+    for (uint32_t lblk = 0; lblk < dir_blocks; lblk++) {
+        uint32_t phys;
+        if (ext2_bmap(fs, dir_inode, lblk, 0, &phys) != 0 || !phys) continue;
+        
+        buf_t *dir_b = bread(phys, fs->block_size);
+        if (!dir_b) continue;
+        
+        uint32_t offset = 0;
+        while (offset < fs->block_size) {
+            ext2_dir_entry_t *entry = (ext2_dir_entry_t *)(dir_b->data + offset);
+            if (entry->rec_len == 0) break;
+           
+            uint32_t real_len = (8 + entry->name_len + 3) & ~3;
+            
+            if (entry->rec_len >= real_len + needed_len) {
+                uint32_t new_rec_len = entry->rec_len - real_len;
+                entry->rec_len = real_len;
+                
+                ext2_dir_entry_t *new_entry = (ext2_dir_entry_t *)(dir_b->data + offset + real_len);
+                new_entry->inode = new_ino;
+                new_entry->rec_len = new_rec_len;
+                new_entry->name_len = name_str_len;
+                new_entry->file_type = file_type;
+                memcpy(new_entry->name, (void*)name, name_str_len);
+                
+                bdirty(dir_b);
+                brelse(dir_b);
+                return 0;
+            }
+            offset += entry->rec_len;
+        }
+        brelse(dir_b);
+    }
+    
+    uint32_t new_blk = ext2_alloc_block(fs);
+    if (!new_blk) return -1;
+    
+    uint32_t new_lblk = dir_inode->i_size / fs->block_size;
+    uint32_t phys;
+    if (ext2_bmap(fs, dir_inode, new_lblk, 1, &phys) != 0) {
+        ext2_free_block(fs, new_blk);
+        return -1;
+    }
+    
+    dir_inode->i_size += fs->block_size;
+    dir_inode->i_blocks += fs->block_size / 512;
+    
+    if (ext2_inode_write(fs, dir_ino, dir_inode) != 0) {
+        ext2_free_block(fs, new_blk);
+        return -1;
+    }
+    
+    buf_t *new_b = bnew(phys, fs->block_size);
+    if (!new_b) {
+        ext2_free_block(fs, new_blk);
+        return -1;
+    }
+    
+    memset(new_b->data, 0, fs->block_size);
+    ext2_dir_entry_t *new_entry = (ext2_dir_entry_t *)new_b->data;
+    new_entry->inode = new_ino;
+    new_entry->rec_len = fs->block_size;
+    new_entry->name_len = name_str_len;
+    new_entry->file_type = file_type;
+    memcpy(new_entry->name, (void*)name, name_str_len);
+    
+    bdirty(new_b);
+    brelse(new_b);
+    
+    return 0;
+}
+
 int ext2_create_file(ext2_fs_t *fs, uint32_t dir_inode_num, const char *name, uint32_t *new_inode_num) {
     ext2_inode_t dir_inode;
     if (ext2_inode_read(fs, dir_inode_num, &dir_inode) != 0) return -1;
@@ -414,7 +535,6 @@ int ext2_create_file(ext2_fs_t *fs, uint32_t dir_inode_num, const char *name, ui
 
     uint32_t free_inode = ext2_alloc_inode(fs);
     if (!free_inode) return -4;
-    *new_inode_num = free_inode;
 
     uint32_t free_block = ext2_alloc_block(fs);
     if (!free_block) {
@@ -436,46 +556,14 @@ int ext2_create_file(ext2_fs_t *fs, uint32_t dir_inode_num, const char *name, ui
         return -6;
     }
 
-    uint32_t dir_phys;
-    if (ext2_bmap(fs, &dir_inode, 0, 0, &dir_phys) != 0 || !dir_phys) return -7;
-
-    buf_t *dir_b = bread(dir_phys, fs->block_size);
-    if (!dir_b) return -8;
-
-    uint32_t offset = 0;
-    uint32_t name_str_len = (uint32_t)strlen(name);
-    uint32_t needed_len = (8 + name_str_len + 3) & ~3;
-
-    while (offset < fs->block_size) {
-        ext2_dir_entry_t *entry = (ext2_dir_entry_t *)(dir_b->data + offset);
-        if (entry->rec_len == 0) break;
-       
-        uint32_t real_len = (8 + entry->name_len + 3) & ~3;
-        
-          if (entry->rec_len >= real_len + needed_len) {
-            uint32_t new_rec_len = entry->rec_len - real_len;
-            entry->rec_len = real_len;
-            
-            ext2_dir_entry_t *new_entry = (ext2_dir_entry_t *)(dir_b->data + offset + real_len);
-            new_entry->inode = free_inode;
-            new_entry->rec_len = new_rec_len;
-            new_entry->name_len = name_str_len;
-            new_entry->file_type = 1;
-            memcpy(new_entry->name, (void*)name, name_str_len);
-            
-            bdirty(dir_b);
-            brelse(dir_b);
-            
-            return 0;
-        }
-        offset += entry->rec_len;
+    if (insert_dir_entry(fs, &dir_inode, dir_inode_num, free_inode, name, 1) != 0) {
+        ext2_free_block(fs, free_block);
+        ext2_free_inode(fs, free_inode);
+        return -7;
     }
-    
-    brelse(dir_b);
 
-    ext2_free_block(fs, free_block);
-    ext2_free_inode(fs, free_inode);
-    return -9;
+    *new_inode_num = free_inode;
+    return 0;
 }
 
 int ext2_write_file(ext2_fs_t *fs, uint32_t ino, uint64_t offset, const void *src, uint32_t len)
@@ -597,21 +685,12 @@ int ext2_sync(ext2_fs_t *fs)
 
 int ext2_create_dir(ext2_fs_t *fs, uint32_t parent_inode_num, const char *name, uint32_t *new_inode_num) {
     ext2_inode_t parent_inode;
-    if (ext2_inode_read(fs, parent_inode_num, &parent_inode) != 0) {
-        return -1;
-    }
-    if ((parent_inode.i_mode & 0xF000) != EXT2_S_IFDIR) {
-        return -2;
-    }
-    if (fs->readonly) {
-        return -3;
-    }
+    if (ext2_inode_read(fs, parent_inode_num, &parent_inode) != 0) return -1;
+    if ((parent_inode.i_mode & 0xF000) != EXT2_S_IFDIR) return -2;
+    if (fs->readonly) return -3;
 
     uint32_t free_inode = ext2_alloc_inode(fs);
-    if (!free_inode) {
-        return -4;
-    }
-    *new_inode_num = free_inode;
+    if (!free_inode) return -4;
 
     uint32_t free_block = ext2_alloc_block(fs);
     if (!free_block) {
@@ -640,85 +719,44 @@ int ext2_create_dir(ext2_fs_t *fs, uint32_t parent_inode_num, const char *name, 
         return -7;
     }
 
+    memset(dir_b->data, 0, fs->block_size);
+
     ext2_dir_entry_t *dot = (ext2_dir_entry_t *)dir_b->data;
     dot->inode = free_inode;
     dot->rec_len = 12;
     dot->name_len = 1;
-    dot->file_type = 2;  // EXT2_FT_DIR
+    dot->file_type = EXT2_FT_DIR;
     dot->name[0] = '.';
-    dot->name[1] = '\0';
     
     ext2_dir_entry_t *dotdot = (ext2_dir_entry_t *)(dir_b->data + 12);
     dotdot->inode = parent_inode_num;
     dotdot->rec_len = fs->block_size - 12;
     dotdot->name_len = 2;
-    dotdot->file_type = 2;  // EXT2_FT_DIR
+    dotdot->file_type = EXT2_FT_DIR;
     dotdot->name[0] = '.';
     dotdot->name[1] = '.';
-    dotdot->name[2] = '\0';
     
     bdirty(dir_b);
     brelse(dir_b);
     
-    uint32_t parent_phys;
-    if (ext2_bmap(fs, &parent_inode, 0, 0, &parent_phys) != 0 || !parent_phys) {
+    if (insert_dir_entry(fs, &parent_inode, parent_inode_num, free_inode, name, EXT2_FT_DIR) != 0) {
         ext2_free_block(fs, free_block);
         ext2_free_inode(fs, free_inode);
         return -8;
     }
     
-    buf_t *parent_b = bread(parent_phys, fs->block_size);
-    if (!parent_b) {
-        ext2_free_block(fs, free_block);
-        ext2_free_inode(fs, free_inode);
-        return -9;
-    }
-    
-    uint32_t offset = 0;
-    uint32_t name_str_len = (uint32_t)strlen(name);
-    uint32_t needed_len = (8 + name_str_len + 3) & ~3;
-    
-    while (offset < fs->block_size) {
-        ext2_dir_entry_t *entry = (ext2_dir_entry_t *)(parent_b->data + offset);
-        if (entry->rec_len == 0) break;
+    parent_inode.i_links_count++;
+    ext2_inode_write(fs, parent_inode_num, &parent_inode);
 
-        uint32_t real_len = (8 + entry->name_len + 3) & ~3;
-        
-        if (entry->rec_len >= real_len + needed_len) {
-            uint32_t new_rec_len = entry->rec_len - real_len;
-            entry->rec_len = real_len;
-            
-            ext2_dir_entry_t *new_entry = (ext2_dir_entry_t *)(parent_b->data + offset + real_len);
-            new_entry->inode = free_inode;
-            new_entry->rec_len = new_rec_len;
-            new_entry->name_len = name_str_len;
-            new_entry->file_type = 2;  // EXT2_FT_DIR
-            memcpy(new_entry->name, (void*)name, name_str_len);
-            
-            bdirty(parent_b);
-            brelse(parent_b);
-            
-            return 0;
-        }
-        offset += entry->rec_len;
-    }
-    
-    brelse(parent_b);
-    ext2_free_block(fs, free_block);
-    ext2_free_inode(fs, free_inode);
-    return -10;
+    *new_inode_num = free_inode;
+    return 0;
 }
 
 int ext2_readdir(ext2_fs_t *fs, uint32_t dir_inode_num, uint32_t index, vfs_dirent_t *dirent)
 {
     ext2_inode_t dir_inode;
-    if (ext2_inode_read(fs, dir_inode_num, &dir_inode) != 0) {
-        return -1;
-    }
-    
-    if ((dir_inode.i_mode & 0xF000) != EXT2_S_IFDIR) {
-        return -2;
-    }
+    if (ext2_inode_read(fs, dir_inode_num, &dir_inode) != 0) return -1;
+    if ((dir_inode.i_mode & 0xF000) != EXT2_S_IFDIR) return -2;
     
     uint32_t dir_size = dir_inode.i_size;
     uint32_t bytes_read = 0;
@@ -729,9 +767,7 @@ int ext2_readdir(ext2_fs_t *fs, uint32_t dir_inode_num, uint32_t index, vfs_dire
         uint32_t within = bytes_read % fs->block_size;
         
         uint32_t phys;
-        if (ext2_bmap(fs, &dir_inode, lblk, 0, &phys) != 0) {
-            return -3;
-        }
+        if (ext2_bmap(fs, &dir_inode, lblk, 0, &phys) != 0) return -3;
         if (!phys) break;
         
         buf_t *b = bread(phys, fs->block_size);
@@ -742,6 +778,11 @@ int ext2_readdir(ext2_fs_t *fs, uint32_t dir_inode_num, uint32_t index, vfs_dire
             ext2_dir_entry_t *entry = (ext2_dir_entry_t *)(b->data + block_offset);
             if (entry->rec_len == 0) break;
             
+            if (entry->inode == 0) {
+                block_offset += entry->rec_len;
+                continue;
+            }
+
             if (entry->name_len == 1 && entry->name[0] == '.') {
                 block_offset += entry->rec_len;
                 continue;
@@ -752,11 +793,15 @@ int ext2_readdir(ext2_fs_t *fs, uint32_t dir_inode_num, uint32_t index, vfs_dire
             }
             
             if (current_index == index) {
-                strncpy(dirent->name, entry->name, entry->name_len);
-                dirent->name[entry->name_len] = '\0';
+                uint32_t copy_len = entry->name_len;
+                if (copy_len >= sizeof(dirent->name)) {
+                    copy_len = sizeof(dirent->name) - 1;
+                }
+                memcpy(dirent->name, entry->name, copy_len);
+                dirent->name[copy_len] = '\0';
                 dirent->inode = entry->inode;
                 
-                if (entry->file_type == 2) {  // EXT2_FT_DIR
+                if (entry->file_type == EXT2_FT_DIR) {
                     dirent->flags = VFS_FLAG_DIRECTORY;
                 } else {
                     dirent->flags = VFS_FLAG_FILE;
@@ -783,15 +828,17 @@ vfs_node_t *ext2_vfs_finddir(vfs_node_t *node, const char *name)
     uint32_t found_ino = 0;
     
     if (ext2_find_file(fs, node->inode, name, &found_ino) != 0) {
-        return 0;
+        return NULL;
     }
 
     ext2_inode_t in;
     if (ext2_inode_read(fs, found_ino, &in) != 0) {
-        return 0;
+        return NULL;
     }
 
     vfs_node_t *new_node = (vfs_node_t *)malloc(sizeof(vfs_node_t));
+    if (!new_node) return NULL;
+    
     memset(new_node, 0, sizeof(vfs_node_t));
     
     strncpy(new_node->name, name, sizeof(new_node->name));
@@ -799,20 +846,17 @@ vfs_node_t *ext2_vfs_finddir(vfs_node_t *node, const char *name)
     new_node->size = in.i_size;
     new_node->parent = node;
     new_node->device = fs;
+    new_node->ref_count = 1;
     
-    if ((in.i_mode & 0xF000) == 0x4000) { // EXT2_S_IFDIR
+    vfs_node_hold(node);
+    
+    if ((in.i_mode & 0xF000) == EXT2_S_IFDIR) {
         new_node->flags = VFS_FLAG_DIRECTORY;
     } else {
         new_node->flags = VFS_FLAG_FILE;
     }
 
-    new_node->ops = (vfs_ops_t *)malloc(sizeof(vfs_ops_t));
-    new_node->ops->read = ext2_vfs_read;
-    new_node->ops->write = ext2_vfs_write;
-    new_node->ops->finddir = ext2_vfs_finddir;
-    new_node->ops->create = ext2_vfs_create;
-    new_node->ops->mkdir = ext2_vfs_mkdir;
-    new_node->ops->readdir = ext2_vfs_readdir;
+    new_node->ops = &ext2_vfs_ops;
 
     return new_node;
 }
@@ -829,9 +873,39 @@ int ext2_vfs_write(vfs_node_t *node, uint64_t offset, uint32_t size, const char*
     return ext2_write_file(fs, node->inode, offset, buffer, size);
 }
 
+int ext2_vfs_truncate(vfs_node_t *node)
+{
+    ext2_fs_t *fs = (ext2_fs_t *)node->device;
+    if (fs->readonly) return -1;
+
+    ext2_inode_t in;
+    if (ext2_inode_read(fs, node->inode, &in)) return -1;
+    if ((in.i_mode & 0xF000) != EXT2_S_IFREG) return -1;
+
+    for (int i = 0; i < 15; i++) {
+        if (in.i_block[i]) {
+            if (i < 12)      free_block_tree(fs, in.i_block[i], 0);  // forward
+            else if (i == 12) free_block_tree(fs, in.i_block[i], 1); // Single indirect
+            else if (i == 13) free_block_tree(fs, in.i_block[i], 2); // Double indirect
+            else if (i == 14) free_block_tree(fs, in.i_block[i], 3); // Triple indirect
+            in.i_block[i] = 0;
+        }
+    } 
+
+    in.i_size = 0;
+    in.i_blocks = 0;
+    
+    if (ext2_inode_write(fs, node->inode, &in)) return -1;
+    
+    node->size = 0;
+    return 0;
+}
+
 int vfs_mount_ext2_root(void) 
 {
     ext2_fs_t *fs = (ext2_fs_t *)malloc(sizeof(ext2_fs_t));
+    if (!fs) return -1;
+    
     memset(fs, 0, sizeof(ext2_fs_t));
     
     int res = ext2_mount(fs);
@@ -841,22 +915,28 @@ int vfs_mount_ext2_root(void)
     }
 
     vfs_node_t *ext2_root = (vfs_node_t *)malloc(sizeof(vfs_node_t));
+    if (!ext2_root) {
+        free(fs);
+        return -1;
+    }
+    
     memset(ext2_root, 0, sizeof(vfs_node_t));
-    strcpy(ext2_root->name, "/");
+    ext2_root->name[0] = '/';
+    ext2_root->name[1] = '\0';
     ext2_root->flags = VFS_FLAG_DIRECTORY;
-    ext2_root->inode = 2;
+    ext2_root->inode = 2; /* Root inode is always 2 in EXT2 */
     ext2_root->device = fs;
     ext2_root->parent = ext2_root;
     
-    ext2_root->ops = (vfs_ops_t *)malloc(sizeof(vfs_ops_t));
-    ext2_root->ops->read = ext2_vfs_read;
-    ext2_root->ops->write = ext2_vfs_write;
-    ext2_root->ops->finddir = ext2_vfs_finddir;
-    ext2_root->ops->create = ext2_vfs_create;
-    ext2_root->ops->mkdir = ext2_vfs_mkdir;
-    ext2_root->ops->readdir = ext2_vfs_readdir;
+    ext2_root->ops = &ext2_vfs_ops;
 
-    free(vfs_root);
+    if (vfs_root) {
+        if (vfs_root->device) {
+            free(vfs_root->device);
+        }
+        free(vfs_root); 
+    }
+    
     vfs_root = ext2_root;
     vfs_cwd = ext2_root;
 
@@ -873,6 +953,8 @@ vfs_node_t *ext2_vfs_create(vfs_node_t *parent, const char *name)
     }
     
     vfs_node_t *new_node = (vfs_node_t *)malloc(sizeof(vfs_node_t));
+    if (!new_node) return NULL;
+    
     memset(new_node, 0, sizeof(vfs_node_t));
     strncpy(new_node->name, name, sizeof(new_node->name));
     new_node->inode = new_inode;
@@ -881,13 +963,10 @@ vfs_node_t *ext2_vfs_create(vfs_node_t *parent, const char *name)
     new_node->parent = parent;
     new_node->device = fs;
     
-    new_node->ops = (vfs_ops_t *)malloc(sizeof(vfs_ops_t));
-    new_node->ops->read = ext2_vfs_read;
-    new_node->ops->write = ext2_vfs_write;
-    new_node->ops->finddir = ext2_vfs_finddir;
-    new_node->ops->create = ext2_vfs_create;
-    new_node->ops->mkdir = ext2_vfs_mkdir;
-    new_node->ops->readdir = ext2_vfs_readdir;
+    new_node->ops = &ext2_vfs_ops;
+
+    new_node->ref_count = 1;
+    vfs_node_hold(parent);
     
     return new_node;
 }
@@ -902,6 +981,8 @@ vfs_node_t *ext2_vfs_mkdir(vfs_node_t *parent, const char *name)
     }
     
     vfs_node_t *new_node = (vfs_node_t *)malloc(sizeof(vfs_node_t));
+    if (!new_node) return NULL;
+    
     memset(new_node, 0, sizeof(vfs_node_t));
     strncpy(new_node->name, name, sizeof(new_node->name));
     new_node->inode = new_inode;
@@ -910,14 +991,10 @@ vfs_node_t *ext2_vfs_mkdir(vfs_node_t *parent, const char *name)
     new_node->parent = parent;
     new_node->device = fs;
     
-    new_node->ops = (vfs_ops_t *)malloc(sizeof(vfs_ops_t));
-    memset(new_node->ops, 0, sizeof(vfs_ops_t));
-    new_node->ops->read = ext2_vfs_read;
-    new_node->ops->write = ext2_vfs_write;
-    new_node->ops->finddir = ext2_vfs_finddir;
-    new_node->ops->create = ext2_vfs_create;
-    new_node->ops->mkdir = ext2_vfs_mkdir;
-    new_node->ops->readdir = ext2_vfs_readdir;
+    new_node->ops = &ext2_vfs_ops;
+    
+    new_node->ref_count = 1;
+    vfs_node_hold(parent);
     
     return new_node;
 }
@@ -925,4 +1002,9 @@ vfs_node_t *ext2_vfs_mkdir(vfs_node_t *parent, const char *name)
 int ext2_vfs_readdir(vfs_node_t *node, uint32_t index, vfs_dirent_t *dirent) {
     ext2_fs_t *fs = (ext2_fs_t *)node->device;
     return ext2_readdir(fs, node->inode, index, dirent);
+}
+
+int ext2_vfs_sync(vfs_node_t *node)
+{
+    return ext2_sync((ext2_fs_t*)node->device);
 }
