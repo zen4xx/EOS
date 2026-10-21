@@ -1,10 +1,12 @@
+#include "syscall.h"
 #include "../cpu/types.h"
 #include "../drivers/screen.h"
 #include "../drivers/ports.h"
 #include "../kernel/kernel_api.h"
 #include "../kernel/alloc.h"
 #include "../multitasking/mt.h"
-#include "syscall.h"
+#include "../fs/fd.h"
+#include "../fs/ext2.h"
 
 #define ACPI_PORT_1 0x604
 #define ACPI_PORT_2 0xb004
@@ -37,7 +39,7 @@ u64 syscall_handler(u64* regs) {
     u64 num = regs[REG_RAX];  // Syscall number
     u64 a1  = regs[REG_RDI];  // First argument
     u64 a2  = regs[REG_RSI];  // Second argument
-//    u64 a3  = regs[REG_RDX];  // Third argument  (uncomment if needed)
+    u64 a3  = regs[REG_RDX];  // Third argument
 //    u64 a4  = regs[REG_RCX];  // Fourth argument (uncomment if needed)
 //    u64 a5  = regs[REG_R8];   // Fifth argument  (uncomment if needed)
 
@@ -63,6 +65,30 @@ u64 syscall_handler(u64* regs) {
     case SYSCALL_FREE:
         release((void*)a1);
         return 0;
+
+    case SYSCALL_FOPEN:
+        return (u64)fd_open(get_current_fd_table(), (const char*)a1, (uint32_t) a2);
+    
+    case SYSCALL_FCLOSE:
+        return (u64)fd_close(get_current_fd_table(), (int)a1);
+
+    case SYSCALL_FREAD:
+        return (u64)fd_read(get_current_fd_table(), (int)a1, (void*)a2, (size_t)a3);
+
+    case SYSCALL_FWRITE:
+        return (u64)fd_write(get_current_fd_table(), (int)a1, (const void*)a2, (size_t)a3);
+
+    case SYSCALL_MKDIR:
+        return (u64)vfs_mkdir((const char*)a1);    
+
+    case SYSCALL_READDIR:
+        return (u64)vfs_readdir((const char*)a1, (uint32_t)a2, (vfs_dirent_t*)a3);
+
+    case SYSCALL_GET_CWD:
+        return (u64)vfs_get_cwd((char*)a1, (uint32_t)a2);
+    
+    case SYSCALL_CHANGE_CWD:
+        return (u64)vfs_change_cwd((const char*)a1);
 
     case SYSCALL_REALLOC:
         release((void*)a1);

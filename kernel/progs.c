@@ -55,14 +55,12 @@ void test(int argc, char **argv)
     print(str);
 }
 
-extern vfs_node_t* vfs_cwd;
-
-void ls(void)
+void ls(int argc, char **argv)
 {
-    vfs_dirent_t dirent;
+    dirent_t dirent;
     uint32_t index = 0;
 
-    while (vfs_readdir(".", index, &dirent) == 0) {
+    while (readdir(".", index, &dirent) == 0) {
         dirent.name[VFS_MAX_NAME - 1] = '\0';
 
         print(dirent.name);
@@ -85,22 +83,28 @@ void write(int argc, char **argv)
         return;
     }
 
-    vfs_file_t *file = vfs_open(argv[1], O_WRONLY | O_CREAT | O_TRUNC);
+    int file = fopen(argv[1], O_WRONLY | O_CREAT | O_TRUNC);
 
-    if (!file) {
+    if (file < 0) {
         print("write: cannot open file\n");
         return;
     }
 
-    uint32_t len = (uint32_t)strlen(argv[2]);
+    for (int i = 2; i < argc; ++i)
+    {
+        uint32_t len = (uint32_t)strlen(argv[i]);
+        int written = fwrite(file, argv[i], len);
 
-    int written = vfs_write(file, argv[2], len);
+        fwrite(file, " ", 1);
 
-    if (written < 0 || (uint32_t)written != len) {
-        print("write: write error\n");
+        if (written < 0 || (uint32_t)written != len) {
+            print("write: write error\n");
+            fclose(file);
+            return;
+        }
     }
 
-    vfs_close(file);
+    fclose(file);
 }
 
 void cat(int argc, char **argv)
@@ -110,23 +114,17 @@ void cat(int argc, char **argv)
         return;
     }
 
-    vfs_file_t *file = vfs_open(argv[1], O_RDONLY);
+    int file = fopen(argv[1], O_RDONLY);
 
-    if (!file) {
+    if (file < 0) {
         print("cat: cannot open file\n");
-        return;
-    }
-
-    if (file->node && (file->node->flags & VFS_FLAG_DIRECTORY)) {
-        print("cat: is a directory\n");
-        vfs_close(file);
         return;
     }
 
     char buf[257];
 
     while (1) {
-        int bytes = vfs_read(file, buf, sizeof(buf) - 1);
+        int bytes = fread(file, buf, sizeof(buf) - 1);
 
         if (bytes < 0) {
             print("cat: read error\n");
@@ -142,7 +140,7 @@ void cat(int argc, char **argv)
 
     print("\n");
 
-    vfs_close(file);
+    fclose(file);
 }
 
 void cd(int argc, char **argv)
@@ -153,21 +151,19 @@ void cd(int argc, char **argv)
         return;
     }
 
-    vfs_change_cwd(argv[1]);
+    change_cwd(argv[1]);
 }
 
-void mkdir(int argc, char **argv)
+void mkdir_cmd(int argc, char **argv)
 {
     if (argc < 2 || !argv[1]) {
         print("usage: mkdir <directory>\n");
         return;
     }
 
-    vfs_node_t *dir = vfs_mkdir(argv[1]);
-
-    if (!dir) {
+    if (mkdir(argv[1]) != 0)
         print("mkdir: cannot create directory\n");
-    }
+    
 }
 
 void shell(int argc, char **argv)
@@ -180,7 +176,7 @@ void shell(int argc, char **argv)
         }
 
         char buf[256];
-        vfs_get_cwd(buf, 256);
+        get_cwd(buf, 256);
         print("[ ");
         print(buf);
         print(" ]>");
@@ -205,6 +201,7 @@ void shell(int argc, char **argv)
 
             if (i == INPUT_BUF_SIZE - 1)
             {
+                str[i] = '\0';
                 krnl_print_at("ERR: ", -1, -1, COMBINE(VGA_RED, VGA_BLACK));
                 krnl_print("too big input\n");
                 i = 0;
@@ -268,6 +265,26 @@ void exec(char* cmd) {
         krnl_print("Type ");
         krnl_print_at("test", -1, -1, COMBINE(VGA_YELLOW, VGA_BLACK));
         krnl_print(" to run test task\n");
+        
+        krnl_print("Type ");
+        krnl_print_at("cd", -1, -1, COMBINE(VGA_YELLOW, VGA_BLACK));
+        krnl_print(" to change directory\n");
+        
+        krnl_print("Type ");
+        krnl_print_at("mkdir", -1, -1, COMBINE(VGA_YELLOW, VGA_BLACK));
+        krnl_print(" to make dir\n");
+        
+        krnl_print("Type ");
+        krnl_print_at("ls", -1, -1, COMBINE(VGA_YELLOW, VGA_BLACK));
+        krnl_print(" to print files and directories at current directory\n");
+        
+        krnl_print("Type ");
+        krnl_print_at("cat", -1, -1, COMBINE(VGA_YELLOW, VGA_BLACK));
+        krnl_print(" to print file data\n");
+
+        krnl_print("Type ");
+        krnl_print_at("write", -1, -1, COMBINE(VGA_YELLOW, VGA_BLACK));
+        krnl_print(" to write data to file\n");
     }
 
     else if (strcmp(first_word, "clear") == 0) {
@@ -333,23 +350,38 @@ void exec(char* cmd) {
     }
         
     else if(strcmp(first_word, "ls") == 0){
-        ls();
+        if (vect_get_size(&cmds) > 1)
+            task_create(ls, vect_get_size(&cmds), (char**)cmds.arr, 1, 1);
+        else 
+            task_create(ls, 0, 0, 1, 1);
     }
 
     else if(strcmp(first_word, "write") == 0){
-        task_create(write, vect_get_size(&cmds), (char**)cmds.arr, 1, 0);
+        if (vect_get_size(&cmds) > 1)
+            task_create(write, vect_get_size(&cmds), (char**)cmds.arr, 1, 1);
+        else 
+            task_create(write, 0, 0, 1, 1);
     }
     
     else if(strcmp(first_word, "cat") == 0){
-        task_create(cat, vect_get_size(&cmds), (char**)cmds.arr, 1, 0);
+        if (vect_get_size(&cmds) > 1)
+            task_create(cat, vect_get_size(&cmds), (char**)cmds.arr, 1, 1);
+        else 
+            task_create(cat, 0, 0, 1, 1);
     }
 
     else if(strcmp(first_word, "cd") == 0){
-        task_create(cd, vect_get_size(&cmds), (char**)cmds.arr, 1, 0);
+        if (vect_get_size(&cmds) > 1)
+            task_create(cd, vect_get_size(&cmds), (char**)cmds.arr, 1, 1);
+        else 
+            task_create(cd, 0, 0, 1, 1);
     }
 
     else if(strcmp(first_word, "mkdir") == 0){
-        task_create(mkdir, vect_get_size(&cmds), (char**)cmds.arr, 1, 0);
+        if (vect_get_size(&cmds) > 1)
+            task_create(mkdir_cmd, vect_get_size(&cmds), (char**)cmds.arr, 1, 1);
+        else 
+            task_create(mkdir_cmd, 0, 0, 1, 1);
     }
 
     else {

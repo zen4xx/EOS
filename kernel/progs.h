@@ -3,6 +3,5 @@
 
 void idle_task(int argc, char **argv);
 void shell(int argc, char **argv);
-void ls();
 
 #endif

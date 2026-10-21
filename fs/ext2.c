@@ -861,13 +861,13 @@ vfs_node_t *ext2_vfs_finddir(vfs_node_t *node, const char *name)
     return new_node;
 }
 
-int ext2_vfs_read(vfs_node_t *node, uint64_t offset, uint32_t size, char *buffer) 
+int ext2_vfs_read(vfs_node_t *node, uint64_t offset, uint32_t size, void* buffer) 
 {
     ext2_fs_t *fs = (ext2_fs_t *)node->device;
     return ext2_read_file(fs, node->inode, offset, buffer, size);
 }
 
-int ext2_vfs_write(vfs_node_t *node, uint64_t offset, uint32_t size, const char* buffer)
+int ext2_vfs_write(vfs_node_t *node, uint64_t offset, uint32_t size, const void* buffer)
 {
     ext2_fs_t *fs = (ext2_fs_t *)node->device;
     return ext2_write_file(fs, node->inode, offset, buffer, size);

@@ -143,8 +143,8 @@ int ext2_readdir(ext2_fs_t *fs, uint32_t dir_inode_num, uint32_t index, vfs_dire
 vfs_node_t *ext2_vfs_finddir(vfs_node_t *node, const char *name);
 vfs_node_t *ext2_vfs_mkdir(vfs_node_t *parent, const char *name);
 int ext2_vfs_readdir(vfs_node_t *node, uint32_t index, vfs_dirent_t *dirent);
-int ext2_vfs_read(vfs_node_t *node, uint64_t offset, uint32_t size, char *buffer);
-int ext2_vfs_write(vfs_node_t *node, uint64_t offset, uint32_t size, const char* buffer);
+int ext2_vfs_read(vfs_node_t *node, uint64_t offset, uint32_t size, void *buffer);
+int ext2_vfs_write(vfs_node_t *node, uint64_t offset, uint32_t size, const void* buffer);
 vfs_node_t *ext2_vfs_create(vfs_node_t *parent, const char *name);
 int ext2_vfs_truncate(vfs_node_t *node);
 int ext2_vfs_sync(vfs_node_t *node);

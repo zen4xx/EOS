@@ -9,6 +9,8 @@
 #define TASK_STACK_SIZE  4096
 #define MIN_STACK_SIZE   1024
 
+#define MAX_FD 16
+
 #define SCHED_INT        0x30
 
 #define TASK_ALLOC(size) malloc(size)
@@ -22,16 +24,20 @@ enum {
     TASK_BLOCKED
 };
 
+//the size of the task structur is 64 bytes, and this is equal to the cache line on the x86_64 and ARM64 CPUs
 struct task {
     uint64_t kernel_rsp;
     uint64_t kernel_stack_top;
-    int state;
     void *kernel_stack;
     void *user_stack;
     uint64_t stack_size;
-    char is_fg;
-    int argc;
+
     char **argv; // memory for arguments
+    fd_table_t *table;
+
+    int argc;
+    char state;
+    char is_fg;
 };
 
 struct irq_frame {
@@ -190,6 +196,14 @@ int task_create_ex(void (*entry)(int, char**), int argc, char** argv, uint64_t s
     struct irq_frame *f = (struct irq_frame *)(ktop - sizeof(struct irq_frame));
     memset(f, 0, sizeof(struct irq_frame));
 
+    fd_table_t* fd_table = fd_table_alloc(MAX_FD);
+    
+    if(!fd_table)
+    {
+        exit_critical(flags);
+        return -2;
+    }
+
     f->r12 = (uint64_t)entry;
     f->r13 = (uint64_t)argc;
 
@@ -250,6 +264,7 @@ argv_fail:
     tasks[i].stack_size = alloc_size;
     tasks[i].argv = task_argv;
     tasks[i].argc = argc;
+    tasks[i].table = fd_table;
 
     if (num_fg_task == 0) {
         tasks[i].is_fg = is_foreground;
@@ -289,6 +304,7 @@ void task_reap(void)
             tasks[i].kernel_rsp = 0;
             tasks[i].kernel_stack_top = 0;
             tasks[i].state = TASK_FREE;
+            fd_table_free(tasks[i].table);
 
             if (tasks[i].argv)
             {
@@ -322,4 +338,9 @@ void start_first_task(void) {
 
     start_task(tasks[first].kernel_rsp);
     __builtin_unreachable();
+}
+
+fd_table_t* get_current_fd_table()
+{
+    return tasks[current_task].table;
 }

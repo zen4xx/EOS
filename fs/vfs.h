@@ -31,8 +31,8 @@ typedef struct {
 typedef struct vfs_node vfs_node_t;
 
 typedef struct vfs_ops {
-    int (*read)(vfs_node_t *node, uint64_t offset, uint32_t size, char *buffer);
-    int (*write)(vfs_node_t *node, uint64_t offset, uint32_t size, const char *buffer);
+    int (*read)(vfs_node_t *node, uint64_t offset, uint32_t size, void *buffer);
+    int (*write)(vfs_node_t *node, uint64_t offset, uint32_t size, const void *buffer);
     int (*readdir)(vfs_node_t *node, uint32_t index, vfs_dirent_t *dirent);
     int (*truncate)(vfs_node_t *node);
     int (*sync)(vfs_node_t *node);
@@ -64,12 +64,12 @@ int vfs_mount(vfs_node_t *mountpoint, vfs_node_t *mount_root);
 vfs_node_t *vfs_namei(const char *path);
 vfs_node_t *vfs_resolve_path(const char *path);
 vfs_file_t *vfs_open(const char *path, uint32_t flags);
-vfs_node_t *vfs_mkdir(const char *path);
+int vfs_mkdir(const char *path);
 int vfs_readdir(const char *path, uint32_t index, vfs_dirent_t *dirent);
 int vfs_change_cwd(const char *path);
 int vfs_get_cwd(char *dst, uint32_t size);
-int vfs_read(vfs_file_t *file, char *buffer, uint32_t size);
-int vfs_write(vfs_file_t *file, const char *buffer, uint32_t size);
+int vfs_read(vfs_file_t *file, void *buffer, uint32_t size);
+int vfs_write(vfs_file_t *file, const void *buffer, uint32_t size);
 void vfs_close(vfs_file_t *file);
 
 void vfs_node_hold(vfs_node_t *node);
