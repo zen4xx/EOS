@@ -1,15 +1,13 @@
 #include "fd.h"
 #include "vfs.h"
 
-static int last_free_fd = -1;  // fd_close must install it on own rn freed fd
-
-static int get_free_fd(const fd_table_t* table)
+static int get_free_fd(fd_table_t* table)
 {
 
-    if (last_free_fd != -1) // attemping to get fd with O(1)
+    if (table->last_free_fd != -1) // attemping to get fd with O(1)
     {
-        int tmp = last_free_fd;
-        last_free_fd = -1;
+        int tmp = table->last_free_fd;
+        table->last_free_fd = -1;
         return tmp;
     }
 
@@ -30,7 +28,11 @@ fd_table_t* fd_table_alloc(int max_fd)
     fd_file* files = malloc(sizeof(fd_file) * max_fd);
     
     if (!files || !res)
+    {   
+        free(res);
+        free(files);
         return NULL;
+    }
 
     res->max_fd = max_fd;
     
@@ -63,7 +65,7 @@ int fd_open(fd_table_t* table, const char* path, uint32_t flags)
     table->files[fd].file = file;
     table->files[fd].is_free = 0;
 
-    return 0;
+    return fd;
 }
 
 int fd_close(fd_table_t *table, int fd)
@@ -71,14 +73,14 @@ int fd_close(fd_table_t *table, int fd)
     if (!table)
         return -1;
 
-    if (fd < 0 || fd > table->max_fd)
+    if (fd < 0 || fd >= table->max_fd)
         return -2;
 
     if (table->files[fd].is_free == 0)
     {
         vfs_close(table->files[fd].file);
         table->files[fd].is_free = 1;
-        last_free_fd = fd;
+        table->last_free_fd = fd;
     }
 
     return 0;
@@ -89,7 +91,7 @@ int fd_read(fd_table_t *table, int fd, void *buffer, size_t size)
     if (!table)
         return -1;
 
-    if (fd < 0 || fd > table->max_fd)
+    if (fd < 0 || fd >= table->max_fd)
         return -2;
 
     if (table->files[fd].is_free == 1) 
@@ -103,7 +105,7 @@ int fd_write(fd_table_t *table, int fd, const void *buffer, size_t size)
     if (!table)
         return -1;
 
-    if (fd < 0 || fd > table->max_fd)
+    if (fd < 0 || fd >= table->max_fd)
         return -2;
 
     if (table->files[fd].is_free == 1) 

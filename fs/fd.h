@@ -15,6 +15,7 @@ typedef struct
 {
     fd_file *files;
     int max_fd;
+    int last_free_fd; // fd_close must install it on own rn freed fd
 } fd_table_t;
 
 fd_table_t* fd_table_alloc(int max_fd);
