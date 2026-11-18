@@ -195,6 +195,7 @@ int task_create_ex(void (*entry)(int, char**), int argc, char** argv, uint64_t s
         ustack = TASK_ALLOC(alloc_size);
         if (!ustack)
         {
+            TASK_FREE(kstack);
             exit_critical(flags);
             return -2;
         }
@@ -208,6 +209,8 @@ int task_create_ex(void (*entry)(int, char**), int argc, char** argv, uint64_t s
     
     if(!fd_table)
     {
+        TASK_FREE(ustack);
+        TASK_FREE(kstack);
         exit_critical(flags);
         return -2;
     }
