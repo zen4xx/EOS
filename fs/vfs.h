@@ -5,6 +5,7 @@
 
 #define VFS_MAX_PATH 512
 #define VFS_MAX_NAME 256
+#define VFS_MAX_MOUNTS 8
 
 #define VFS_FLAG_FILE       0x01
 #define VFS_FLAG_DIRECTORY  0x02
@@ -59,6 +60,11 @@ typedef struct vfs_file {
     uint32_t flags;
 } vfs_file_t;
 
+typedef struct {
+    char path[VFS_MAX_PATH];
+    vfs_node_t *root;
+} vfs_mount_entry_t;
+
 void vfs_init(void);
 int vfs_mount(vfs_node_t *mountpoint, vfs_node_t *mount_root);
 vfs_node_t *vfs_namei(const char *path);
@@ -71,6 +77,7 @@ int vfs_get_cwd(char *dst, uint32_t size);
 int vfs_read(vfs_file_t *file, void *buffer, uint32_t size);
 int vfs_write(vfs_file_t *file, const void *buffer, uint32_t size);
 void vfs_close(vfs_file_t *file);
+int vfs_mount_path(const char *path, vfs_node_t *root);
 
 void vfs_node_hold(vfs_node_t *node);
 void vfs_node_release(vfs_node_t *node);

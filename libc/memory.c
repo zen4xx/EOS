@@ -1,6 +1,6 @@
 #include "memory.h"
 
-void memcpy(void* dest, void* src, u32 n){
+void memcpy(void* dest, const void* src, u32 n){
 	char* m_dest = (char*)dest;
 	const char* m_src = (const char*)src;
 	while(n--)
@@ -13,7 +13,7 @@ void memset(void* dest, char c, u32 n){
 		*m_dest++ = c;
 }
 
-void memmove(void* dest, void* src, u32 n){
+void memmove(void* dest, const void* src, u32 n){
 	char* d = (char*)dest;
 	char* s = (char*)src;
 	if (d == s || n == 0) return;

@@ -3,9 +3,9 @@
 
 #include "../cpu/types.h"
 
-void memcpy(void* dest, void* src, u32 n);
+void memcpy(void* dest, const void* src, u32 n);
 void memset(void* dest, char c, u32 n);
-void memmove(void* dest, void* src, u32 n);
+void memmove(void* dest, const void* src, u32 n);
 int memcmp(const void *s1, const void *s2, size_t n);
 
 #endif

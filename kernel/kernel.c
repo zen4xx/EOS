@@ -10,6 +10,7 @@
 #include "../drivers/ahci.h"
 #include "../fs/ext2.h"
 #include "../fs/vfs.h"
+#include "../fs/devfs.h"
 #include "progs.h"
 
 volatile char _current_char = '\0';
@@ -52,6 +53,11 @@ void kernel_main() {
         krnl_print("\n halting \n");
         __asm__ volatile("hlt");
     }
+
+    vfs_mkdir("/dev");
+    res = devfs_init();
+    if (res != 0)
+        krnl_print("warning: failed to init devfs");
 
     krnl_print("W3lC0M3 T0 ");
 	krnl_print_at("EOS\n", -1, -1, COMBINE(VGA_MAGENTA, VGA_BLACK));

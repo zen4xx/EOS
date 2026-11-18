@@ -8,6 +8,18 @@ vfs_node_t *vfs_cwd = NULL;
 
 static char vfs_cwd_path[VFS_MAX_PATH] = "/";
 
+static vfs_mount_entry_t vfs_mounts[VFS_MAX_MOUNTS];
+static int vfs_mount_count = 0;
+
+static vfs_node_t *vfs_mount_lookup(const char *path, uint32_t len)
+{
+    for (int i = 0; i < vfs_mount_count; i++)
+        if (strlen(vfs_mounts[i].path) == len &&
+            memcmp(vfs_mounts[i].path, path, len) == 0)
+            return vfs_mounts[i].root;
+    return NULL;
+}
+
 void vfs_node_hold(vfs_node_t *node)
 {
     if (node) {
@@ -267,6 +279,14 @@ static vfs_node_t *vfs_namei_normalized(const char *path)
         if (comp_len >= VFS_MAX_NAME) {
             vfs_node_release(current);
             return NULL;
+        }
+
+        vfs_node_t *mounted = vfs_mount_lookup(path, (uint32_t)(p - path));
+        if (mounted) {
+            vfs_node_release(current);
+            current = mounted;
+            vfs_node_hold(current);
+            continue;
         }
 
         char component[VFS_MAX_NAME];
@@ -738,4 +758,27 @@ int vfs_get_cwd(char *dst, uint32_t size)
     dst[len] = '\0';
 
     return (int)len;
+}
+
+int vfs_mount_path(const char *path, vfs_node_t *root)
+{
+    if (!path || !root || !(root->flags & VFS_FLAG_DIRECTORY))
+        return -1;
+
+    char normalized[VFS_MAX_PATH];
+    if (vfs_normalize_path(path, vfs_cwd_path, normalized, sizeof(normalized)) != 0)
+        return -1;
+
+    uint32_t len = strlen(normalized);
+    if (len <= 1 || vfs_mount_count >= VFS_MAX_MOUNTS)
+        return -1;
+
+    if (vfs_mount_lookup(normalized, len))
+        return -1;
+
+    memcpy(vfs_mounts[vfs_mount_count].path, normalized, len + 1);
+    vfs_mounts[vfs_mount_count].root = root;
+    vfs_node_hold(root);
+    vfs_mount_count++;
+    return 0;
 }
