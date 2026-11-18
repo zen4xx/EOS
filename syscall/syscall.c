@@ -66,16 +66,16 @@ u64 syscall_handler(u64* regs) {
         release((void*)a1);
         return 0;
 
-    case SYSCALL_FOPEN:
+    case SYSCALL_OPEN:
         return (u64)fd_open(get_current_fd_table(), (const char*)a1, (uint32_t) a2);
     
-    case SYSCALL_FCLOSE:
+    case SYSCALL_CLOSE:
         return (u64)fd_close(get_current_fd_table(), (int)a1);
 
-    case SYSCALL_FREAD:
+    case SYSCALL_READ:
         return (u64)fd_read(get_current_fd_table(), (int)a1, (void*)a2, (size_t)a3);
 
-    case SYSCALL_FWRITE:
+    case SYSCALL_WRITE:
         return (u64)fd_write(get_current_fd_table(), (int)a1, (const void*)a2, (size_t)a3);
 
     case SYSCALL_MKDIR:
