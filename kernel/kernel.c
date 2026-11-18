@@ -54,7 +54,6 @@ void kernel_main() {
         __asm__ volatile("hlt");
     }
 
-    vfs_mkdir("/dev");
     res = devfs_init();
     if (res != 0)
         krnl_print("warning: failed to init devfs");

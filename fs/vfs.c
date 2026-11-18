@@ -686,6 +686,47 @@ int vfs_readdir(const char *path, uint32_t index, vfs_dirent_t *dirent)
 
     ret = dir->ops->readdir(dir, index, dirent);
 
+    if (ret != 0) {
+        uint32_t base = 0;
+        vfs_dirent_t tmp;
+        while (dir->ops->readdir(dir, base, &tmp) == 0)
+            base++;
+
+        if (index >= base) {
+            uint32_t mi = index - base;
+
+            for (int i = 0; i < vfs_mount_count; i++) {
+                char mparent[VFS_MAX_PATH];
+                char mname[VFS_MAX_NAME];
+
+                if (vfs_split_path(vfs_mounts[i].path,
+                                   mparent, sizeof(mparent),
+                                   mname, sizeof(mname)) != 0)
+                    continue;
+
+                if (strcmp(mparent, normalized) != 0)
+                    continue;
+
+                if (dir->ops->finddir) {
+                    vfs_node_t *dup = dir->ops->finddir(dir, mname);
+                    if (dup) {
+                        vfs_node_release(dup);
+                        continue;
+                    }
+                }
+
+                if (mi-- == 0) {
+                    strncpy(dirent->name, mname, VFS_MAX_NAME - 1);
+                    dirent->name[VFS_MAX_NAME - 1] = '\0';
+                    dirent->inode = vfs_mounts[i].root->inode;
+                    dirent->flags = VFS_FLAG_DIRECTORY | VFS_FLAG_MOUNTPOINT;
+                    ret = 0;
+                    break;
+                }
+            }
+        }
+    }
+
 out:
     vfs_node_release(dir);
     return ret;
