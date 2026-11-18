@@ -1,9 +1,14 @@
 #include "keyboard.h"
 #include "../kernel/kernel_api.h"
+#include "screen.h"
 
 #define KBD_DATA   0x60
 #define KBD_STATUS 0x64
 #define KBD_CMD    0x64
+
+#define KBD_BUF 128
+static volatile char buf[KBD_BUF];
+static volatile uint32_t head, tail;
 
 #define SCAN_MAX 57
 static int shift_pressed = 0;
@@ -61,10 +66,19 @@ static void keyboard_callback(registers_t* regs) {
         char ch = shift_pressed ? scan_ascii_shift_map[scancode]
                                 : scan_ascii_map[scancode];
 
+        buf[head++ % KBD_BUF] = ch;
+
         print_char(ch, -1, -1, 0x0f);
 
         raw_keyboard_input(ch);
     }
+}
+
+int kbd_getchar(void) {
+    if (head != tail)
+        return (unsigned char)buf[tail++ % KBD_BUF];
+    else
+        return -1;
 }
 
 void init_keyboard(void) {
@@ -77,8 +91,4 @@ void init_keyboard(void) {
     kbd_flush();
 
     irq_set_mask(1, 0);
-}
-
-void get_key(char key[]) {
-    (void)key;
 }

@@ -113,3 +113,12 @@ int fd_write(fd_table_t *table, int fd, const void *buffer, size_t size)
 
     return vfs_write(table->files[fd].file, buffer, size);
 }
+
+int fd_install(fd_table_t *t, vfs_file_t *file)
+{
+    int fd = get_free_fd(t);
+    if (fd < 0) return -1;
+    t->files[fd].file = file;
+    t->files[fd].is_free = 0;
+    return fd;
+}

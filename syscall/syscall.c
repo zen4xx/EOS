@@ -44,17 +44,6 @@ u64 syscall_handler(u64* regs) {
 //    u64 a5  = regs[REG_R8];   // Fifth argument  (uncomment if needed)
 
     switch (num) {
-    case SYSCALL_PRINT_STRING:
-        krnl_print((char*)a1);
-        return 0;
-
-    case SYSCALL_GETCHAR:
-        _current_char = '\0';
-        asm volatile("sti");
-        while (_current_char == '\0');
-        asm volatile("cli");
-        return (u64)_current_char;
-
     case SYSCALL_EXIT:
         task_exit();
         return 0;

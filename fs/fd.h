@@ -27,4 +27,6 @@ int fd_close(fd_table_t* table, int fd);                             // return 0
 int fd_read(fd_table_t* table, int fd, void* buffer, size_t size);
 int fd_write(fd_table_t* table, int fd, const void* buffer, size_t size);
 
+int fd_install(fd_table_t *t, vfs_file_t *file);
+
 #endif

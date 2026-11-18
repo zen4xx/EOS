@@ -37,6 +37,7 @@ typedef struct vfs_ops {
     int (*readdir)(vfs_node_t *node, uint32_t index, vfs_dirent_t *dirent);
     int (*truncate)(vfs_node_t *node);
     int (*sync)(vfs_node_t *node);
+    int (*close)(vfs_node_t *node);
     vfs_node_t *(*finddir)(vfs_node_t *node, const char *name);
     vfs_node_t *(*mkdir)(vfs_node_t *parent, const char *name);
     vfs_node_t *(*create)(vfs_node_t *parent, const char *name);

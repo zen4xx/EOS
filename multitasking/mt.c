@@ -21,7 +21,9 @@ enum {
     TASK_READY,
     TASK_RUNNING,
     TASK_DEAD,
-    TASK_BLOCKED
+    TASK_BLOCKED,
+    TASK_ZOMBIE,
+    TASK_UNUSED
 };
 
 //the size of the task structur is 64 bytes, and this is equal to the cache line on the x86_64 and ARM64 CPUs
@@ -138,22 +140,28 @@ void task_exit(void)
     asm volatile("cli" ::: "memory");
 
     if (current_task >= 0) {
-        tasks[current_task].state = TASK_DEAD;
-        if (tasks[current_task].is_fg == 1) {
-            tasks[current_task].is_fg = 0;
+        struct task *t = &tasks[current_task];
+
+        if (t->table) {
+            for (int i = 0; i < t->table->max_fd; i++)
+                fd_close(t->table, i);
+            fd_table_free(t->table);
+            t->table = NULL;
+        }
+
+        t->state = TASK_DEAD;
+        if (t->is_fg == 1) {
+            t->is_fg = 0;
             _is_current_task_foreground = 0;
             --num_fg_task;
         }
     }
 
     asm volatile("int $0x30" ::: "memory");
-
-    for (;;) {
-        asm volatile("cli; hlt");
-    }
+    for (;;) asm volatile("cli; hlt");
 }
 
-int task_create_ex(void (*entry)(int, char**), int argc, char** argv, uint64_t stack_size, char is_foreground, char is_user_space)
+int task_create_ex(void (*entry)(int, char**), int argc, char** argv, uint64_t stack_size, char is_foreground, char is_user_space, vfs_file_t *fd0, vfs_file_t *fd1, vfs_file_t *fd2)
 {
     if (entry == 0) return -1;
 
@@ -203,6 +211,16 @@ int task_create_ex(void (*entry)(int, char**), int argc, char** argv, uint64_t s
         exit_critical(flags);
         return -2;
     }
+
+    // stdin
+    if (fd0) fd_install(fd_table, fd0);
+    else     fd_open(fd_table, "/dev/kbd", O_RDONLY);
+    // stdout
+    if (fd1) fd_install(fd_table, fd1);
+    else     fd_open(fd_table, "/dev/console", O_WRONLY);
+    // stderr
+    if (fd2) fd_install(fd_table, fd2);
+    else     fd_open(fd_table, "/dev/console", O_WRONLY);
 
     f->r12 = (uint64_t)entry;
     f->r13 = (uint64_t)argc;
@@ -281,7 +299,7 @@ argv_fail:
 
 int task_create(void (*entry)(int, char**), int argc, char** argv, char is_foreground, char is_user_space)
 {
-    return task_create_ex(entry, argc, argv, TASK_STACK_SIZE, is_foreground, is_user_space);
+    return task_create_ex(entry, argc, argv, TASK_STACK_SIZE, is_foreground, is_user_space, NULL, NULL, NULL);
 }
 
 void task_reap(void)
@@ -304,7 +322,13 @@ void task_reap(void)
             tasks[i].kernel_rsp = 0;
             tasks[i].kernel_stack_top = 0;
             tasks[i].state = TASK_FREE;
-            fd_table_free(tasks[i].table);
+
+            if (tasks[i].table) { // in case of a task that died without task_exit
+                for (int j = 0; j < tasks[i].table->max_fd; j++)
+                    fd_close(tasks[i].table, j);
+                fd_table_free(tasks[i].table);
+                tasks[i].table = NULL;
+            }
 
             if (tasks[i].argv)
             {
@@ -343,4 +367,19 @@ void start_first_task(void) {
 fd_table_t* get_current_fd_table()
 {
     return tasks[current_task].table;
+}
+
+int task_finished(int id)
+{
+    if (id < 0 || id >= MAX_TASKS)
+        return 1;
+
+    char s = tasks[id].state;
+    return s == TASK_DEAD || s == TASK_FREE;
+}
+
+void task_wait(int id)
+{
+    while (!task_finished(id))
+        yield();
 }

@@ -54,7 +54,7 @@ void *realloc(void *ptr, uint64_t size) {
     return (void *)num;
 }
 
-int fopen(const char *path, uint32_t flags)
+int open(const char *path, uint32_t flags)
 {
     register uint64_t rax __asm__("rax") = 4;
     register uint64_t rdi __asm__("rdi") = (uint64_t)path;
@@ -70,7 +70,7 @@ int fopen(const char *path, uint32_t flags)
     return (int)rax;
 }
 
-int fclose(int fd)
+int close(int fd)
 {
     register uint64_t rax __asm__("rax") = 5;
     register uint64_t rdi __asm__("rdi") = (uint64_t)fd;
@@ -85,7 +85,7 @@ int fclose(int fd)
     return (int)rax;
 }
 
-int fread(int fd, void *buffer, size_t size)
+int read(int fd, void *buffer, size_t size)
 {
     register uint64_t rax __asm__("rax") = 6;
     register uint64_t rdi __asm__("rdi") = (uint64_t)fd;
@@ -102,7 +102,7 @@ int fread(int fd, void *buffer, size_t size)
     return (int)rax;
 }
 
-int fwrite(int fd, const void *buffer, size_t size)
+int write(int fd, const void *buffer, size_t size)
 {
     register uint64_t rax __asm__("rax") = 7;
     register uint64_t rdi __asm__("rdi") = (uint64_t)fd;

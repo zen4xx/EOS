@@ -4,8 +4,9 @@
 #include "../libc/memory.h"
 #include "../drivers/screen.h"
 #include "../drivers/ahci.h"
+#include "../drivers/keyboard.h"
 #include "../kernel/kernel.h"
-
+#include "../multitasking/mt.h"
 
 typedef struct devfs_entry {
     vfs_node_t *node;
@@ -112,15 +113,17 @@ static vfs_ops_t console_ops = {
 static int kbd_read(vfs_node_t *n, uint64_t off, uint32_t sz, void *b)
 {
     (void)n; (void)off;
-    if (sz == 0) return 0;
-    _current_char = '\0';
-    asm volatile("sti");
-    while (_current_char == '\0')
-        asm volatile("hlt");
-    asm volatile("cli");
-    ((char *)b)[0] = _current_char;
+    if (sz == 0)
+        return 0;
+
+    int c;
+    while ((c = kbd_getchar()) < 0)
+        yield();
+
+    ((char *)b)[0] = (char)c;
     return 1;
 }
+
 static vfs_ops_t kbd_ops = { .read = kbd_read };
 
 static int sda_read(vfs_node_t *n, uint64_t off, uint32_t sz, void *b)

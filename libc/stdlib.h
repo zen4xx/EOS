@@ -18,10 +18,10 @@ void free(void* ptr);
 void* realloc(void* ptr, uint64_t size);
 uint64_t malloc_info(void); // return a total allocated size in bytes
 
-int fopen(const char *path, uint32_t flags);
-int fclose(int fd);
-int fread(int fd, void *buffer, size_t size);
-int fwrite(int fd, const void *buffer, size_t size);
+int open(const char *path, uint32_t flags);
+int close(int fd);
+int read(int fd, void *buffer, size_t size);
+int write(int fd, const void *buffer, size_t size);
 int mkdir(const char *path);
 int readdir(const char *path, uint32_t index, dirent_t *entry);
 int get_cwd(char *buffer, uint32_t size);

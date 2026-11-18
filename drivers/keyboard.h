@@ -8,5 +8,6 @@
 
 void init_keyboard(void);
 void get_key(char key[]);
+int kbd_getchar(void);
 
 #endif

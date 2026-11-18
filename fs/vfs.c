@@ -778,6 +778,9 @@ void vfs_close(vfs_file_t *file)
         if (file->node->ops && file->node->ops->sync)
             file->node->ops->sync(file->node);
 
+        if (file->node->ops && file->node->ops->close)
+            file->node->ops->close(file->node);
+
         vfs_node_release(file->node);
         file->node = NULL;
     }
