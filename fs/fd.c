@@ -43,6 +43,7 @@ fd_table_t* fd_table_alloc(int max_fd)
     }
 
     res->files = files;
+    res->last_free_fd = -1;
     
     return res;
 }
