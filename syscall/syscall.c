@@ -79,10 +79,6 @@ u64 syscall_handler(u64* regs) {
     case SYSCALL_CHANGE_CWD:
         return (u64)vfs_change_cwd((const char*)a1);
 
-    case SYSCALL_REALLOC:
-        release((void*)a1);
-        return (u64)allocate((size_t)a2);
-
     case SYSCALL_MALLOC_STATS:
         return (u64)get_total_allocated_size();
 

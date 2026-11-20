@@ -1,6 +1,9 @@
 #include "kernel.h"
 #include "alloc.h"
 #include "pmm.h"
+#include "progs.h"
+#include "paging.h"
+#include "e820.h"
 #include "../multitasking/mt.h"
 #include "../drivers/screen.h"
 #include "../cpu/isr.h"
@@ -11,7 +14,6 @@
 #include "../fs/ext2.h"
 #include "../fs/vfs.h"
 #include "../fs/devfs.h"
-#include "progs.h"
 
 volatile char _current_char = '\0';
 volatile char _is_current_task_foreground = 0;
@@ -26,9 +28,25 @@ void kernel_main() {
     isr_install();
     irq_install();
 
-    init_allocator();
+    const e820_map_t* map = e820_get();
 
-    pmm_init(0x800000, 0x800000);
+    pmm_init(0x800000, 512 * 1024 * 1024);
+
+    if (map) {
+        for (uint32_t i = 0; i < map->count; i++)
+            if (map->entries[i].type == E820_USABLE)
+                pmm_init_region(map->entries[i].base, map->entries[i].length);
+        for (uint32_t i = 0; i < map->count; i++)
+            if (map->entries[i].type != E820_USABLE)
+                pmm_reserve(map->entries[i].base, map->entries[i].length);
+    } else {
+        krnl_print("warning: no e820 map, assuming 16 MiB of RAM\n");
+        pmm_init_region(0x800000, 8 * 1024 * 1024);
+    }
+
+
+    paging_init();
+    init_allocator();
 
     int res = ahci_init();
     if (res != 0)

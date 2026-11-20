@@ -6,6 +6,7 @@
 ;   * the kernel is temporarily loaded at 0x20000, then copied to 0x100000
 ;   * first 4 GiB is identity mapped with 2 MiB pages
 ;   * page tables are placed at a fixed safe location (0x80000)
+;   * E820 memory map is stored at 0x8800 for the kernel (see kernel/e820.h)
 ; ===========================================================================
 BITS 16
 ORG 0x7E00
@@ -61,6 +62,13 @@ stage2:
             call    detect_ext
             call    get_geometry
             call    load_kernel
+            call    detect_memory           ; <-- E820, пока IF=1 и real mode
+            mov     si, msg_e820            ; диагностика: "e820: NN"
+            call    puts
+            mov     ax, [0x8804]            ; число записей карты
+            call    print_hex8
+            mov     si, msg_crlf
+            call    puts
             call    enable_a20
 
             mov     si, msg_pm
@@ -132,7 +140,7 @@ get_geometry:
             ret
 
 ; ===========================================================================
-; load_kernel - read KERNEL_SECTORS sectors from LBA KERNEL_LBA to 
+; load_kernel - read KERNEL_SECTORS sectors from LBA KERNEL_LBA to 0x20000
 ; ===========================================================================
 load_kernel:
             mov     word [cur_lba], KERNEL_LBA
@@ -289,6 +297,99 @@ disk_reset:
             popa
             ret
 
+%define E820_BUF  0x8800
+%define E820_MAX  64
+detect_memory:
+            pusha
+            push    es
+            xor     ax, ax
+            mov     es, ax
+            mov     di, E820_BUF + 8
+            mov     dword [es:E820_BUF], 0x30323845     ; "E820"
+            mov     dword [es:E820_BUF + 4], 0          ; count = 0
+            xor     ebx, ebx                            ; continuation
+            xor     bp, bp                              ; entry counter
+            mov     edx, 0x534D4150                     ; 'SMAP'
+            mov     eax, 0xE820
+            mov     ecx, 24
+            mov     dword [es:di + 20], 1               ; ACPI ext attrs = valid
+            int     0x15
+            jc      .fallback
+            cmp     eax, 0x534D4150
+            jne     .fallback
+            jmp     .check_entry
+.loop:
+            mov     eax, 0xE820
+            mov     edx, 0x534D4150
+            mov     ecx, 24
+            mov     dword [es:di + 20], 1
+            int     0x15
+            jc      .done
+.check_entry:
+            jcxz    .skip
+            cmp     cl, 20
+            jbe     .len_check
+            test    byte [es:di + 20], 1 
+            je      .skip
+.len_check:
+            mov     ecx, [es:di + 8]                    ; length != 0 ?
+            test    ecx, ecx
+            jne     .accept
+            mov     ecx, [es:di + 12]
+            test    ecx, ecx
+            je      .skip
+.accept:
+            inc     bp
+            add     di, 24
+            cmp     bp, E820_MAX
+            jae     .done
+.skip:
+            test    ebx, ebx
+            jne     .loop
+.done:
+            mov     [es:E820_BUF + 4], bp
+            pop     es
+            popa
+            ret
+.fallback:
+            xor     ax, ax
+            mov     es, ax
+            mov     ax, 0xE801                          ; AX=KB[1M,16M) BX=64K>16M
+            int     0x15
+            jc      .fallback88
+            test    cx, cx 
+            je      .e801_ok
+            mov     ax, cx
+            mov     bx, dx
+.e801_ok:
+            movzx   eax, ax
+            shl     eax, 10
+            movzx   edx, bx
+            shl     edx, 16
+            add     eax, edx
+            jmp     .make_entry
+.fallback88:
+            mov     ah, 0x88
+            int     0x15
+            jc      .no_mem
+            movzx   eax, ax
+            shl     eax, 10
+.make_entry:
+            test    eax, eax
+            je      .no_mem
+            mov     di, E820_BUF + 8
+            mov     dword [es:di],      0x100000        ; base = 1 MiB
+            mov     dword [es:di + 4],  0
+            mov     dword [es:di + 8],  eax             ; length
+            mov     dword [es:di + 12], 0
+            mov     dword [es:di + 16], 1               ; type = usable
+            mov     dword [es:di + 20], 1
+            mov     bp, 1
+            jmp     .done
+.no_mem:
+            xor     bp, bp
+            jmp     .done
+
 ; ===========================================================================
 ; A20
 ; ===========================================================================
@@ -430,6 +531,25 @@ putc:
             popa
             ret
 
+; print AL as two hex digits (diagnostic only)
+print_hex8:
+            pusha
+            mov     bl, al
+            shr     al, 4
+            call    .nib
+            mov     al, bl
+            and     al, 0x0F
+            call    .nib
+            popa
+            ret
+.nib:
+            add     al, '0'
+            cmp     al, '9'
+            jbe     .p
+            add     al, 7
+.p:
+            jmp     putc
+
 puts:
             pusha
             mov     ah, 0x0E
@@ -446,11 +566,6 @@ puts:
 
 ; ===========================================================================
 ; GDT
-;
-; We need:
-;   - 32-bit code segment to prepare page tables and enable long mode
-;   - data segment
-;   - 64-bit code segment for the final long mode jump
 ; ===========================================================================
 gdt_start:
             dq 0x0000000000000000
@@ -490,16 +605,8 @@ DATA_SEG    equ gdt_data   - gdt_start
 CODE64_SEG  equ gdt_code64 - gdt_start
 
 ; ===========================================================================
-; 32-bit protected mode entry.
-;
-;   PML4[0] -> PDPT
-;   PDPT[0] -> PD
-;   PD[0..511] -> 2 MiB physical pages
-;
-; Then enable PAE, load CR3, set EFER.LME, enable paging,
-; and far jump to 64-bit mode.
+; 32-bit protected mode entry: build page tables, enable PAE + long mode.
 ; ===========================================================================
-
 BITS 32
 pm32_entry:
             mov     ax, DATA_SEG
@@ -537,7 +644,7 @@ pm32_entry:
             mov     dword [PDPT + 28], 0
 
             mov     edi, PD0
-            mov     eax, 0x00000087
+            mov     eax, 0x00000087         ; PS|RW|P = 2 MiB page
             mov     ecx, 512
 .fill0:
             mov     [edi], eax
@@ -594,9 +701,6 @@ pm32_entry:
 
 ; ===========================================================================
 ; 64-bit long mode entry.
-;
-; The CPU is now in long mode with identity-mapped first 1 GiB.
-; The kernel must be 64-bit and linked at KERNEL_OFF.
 ; ===========================================================================
 BITS 64
 long_entry:
@@ -641,5 +745,6 @@ msg_crlf    db 13, 10, 0
 msg_pm      db "entering long mode", 13, 10, 0
 msg_disk    db 13, 10, "S2: disk read failed", 13, 10, 0
 msg_a20     db 13, 10, "S2: A20 could not be enabled", 13, 10, 0
+msg_e820    db "e820: ", 0
 
             times (4 * 512) - ($ - $$) db 0     ; pad to exactly 4 sectors

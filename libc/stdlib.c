@@ -39,21 +39,6 @@ void free(void *ptr) {
     );
 }
 
-void *realloc(void *ptr, uint64_t size) {
-    register uint64_t num __asm__("rax") = 11;
-    register uint64_t arg1 __asm__("rdi") = (uint64_t)ptr;
-    register uint64_t arg2 __asm__("rsi") = size;
-    
-    __asm__ __volatile__ (
-        "int $0x80"
-        : "+r" (num)
-        : "r" (arg1), "r" (arg2)
-        : "memory", "rcx", "r11"
-    );
-    
-    return (void *)num;
-}
-
 int open(const char *path, uint32_t flags)
 {
     register uint64_t rax __asm__("rax") = 4;

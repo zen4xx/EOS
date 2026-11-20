@@ -557,7 +557,7 @@ int ext2_create_file(ext2_fs_t *fs, uint32_t dir_inode_num, const char *name, ui
     if (insert_dir_entry(fs, &dir_inode, dir_inode_num, free_inode, name, 1) != 0) {
         ext2_free_block(fs, free_block);
         ext2_free_inode(fs, free_inode);
-        return -7;
+        return -6;
     }
 
     *new_inode_num = free_inode;

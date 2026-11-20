@@ -15,7 +15,6 @@ typedef struct
 
 void* malloc(uint64_t size);
 void free(void* ptr);
-void* realloc(void* ptr, uint64_t size);
 uint64_t malloc_info(void); // return a total allocated size in bytes
 
 int open(const char *path, uint32_t flags);

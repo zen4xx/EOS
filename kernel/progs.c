@@ -206,8 +206,9 @@ static void cmd_test(int argc, char **argv)
     }
     print("Enter your name: ");
     char str[64]; int i = 0, c;
-    while ((c = getc()) != '\n' && c >= 0)
+    while ((c = getc()) != '\n' && c >= 0){
         if (i < (int)sizeof(str) - 1) str[i++] = (char)c;
+    }
     str[i] = '\0';
     print("Hi, "); print(str); print("\n");
 }
@@ -326,7 +327,7 @@ void exec(char *cmd)
     int ids[MAX_STAGES], spawned = 0;
     for (int i = 0; i < nst; i++) {
         vfs_file_t *fd0 = fin[i]  ? fin[i]  : (i > 0     ? pr[i - 1] : NULL);
-        vfs_file_t *fd1 = fout[i] ? fout[i] : (i < nst - 1 ? pw[i]     : NULL);
+        vfs_file_t *fd1 = fout[i] ? fout[i] : (i < nst - 1 ? pw[i]   : NULL);
 
         if (i > 0     && fd0 != pr[i - 1]) vfs_close(pr[i - 1]);
         if (i < nst - 1 && fd1 != pw[i])   vfs_close(pw[i]);
