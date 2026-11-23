@@ -2,12 +2,6 @@
 #include "ports.h"
 #include "../libc/memory.h" 
 
-static size_t get_cursor_offset(void);
-static void set_cursor_offset(size_t offset);
-static size_t get_offset(int col, int row);
-static int get_offset_row(size_t offset);
-static int get_offset_col(size_t offset);
-
 void krnl_print_at(const char *msg, int col, int row, uint8_t color) {
     size_t offset;
     if (col >= 0 && row >= 0) {
@@ -85,7 +79,7 @@ size_t print_char(char c, int col, int row, uint8_t attr) {
     return offset;
 }
 
-static size_t get_cursor_offset(void) {
+size_t get_cursor_offset(void) {
     port_byte_out(REG_SCREEN_CTRL, 14);
     size_t offset = (size_t)port_byte_in(REG_SCREEN_DATA) << 8; /* High byte */
     port_byte_out(REG_SCREEN_CTRL, 15);
@@ -93,7 +87,7 @@ static size_t get_cursor_offset(void) {
     return offset * 2;
 }
 
-static void set_cursor_offset(size_t offset) {
+void set_cursor_offset(size_t offset) {
     size_t cursor_pos = offset / 2;
     port_byte_out(REG_SCREEN_CTRL, 14);
     port_byte_out(REG_SCREEN_DATA, (uint8_t)(cursor_pos >> 8));
@@ -112,14 +106,14 @@ void clear(void) {
     set_cursor_offset(get_offset(0, 0));
 }
 
-static size_t get_offset(int col, int row) { 
+size_t get_offset(int col, int row) { 
     return (size_t)(2 * (row * MAX_COLS + col)); 
 }
 
-static int get_offset_row(size_t offset) { 
+int get_offset_row(size_t offset) { 
     return (int)(offset / (2 * MAX_COLS)); 
 }
 
-static int get_offset_col(size_t offset) { 
+int get_offset_col(size_t offset) { 
     return (int)((offset - (get_offset_row(offset) * 2 * MAX_COLS)) / 2); 
 }

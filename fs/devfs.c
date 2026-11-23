@@ -17,6 +17,8 @@ static vfs_node_t   *devfs_root  = NULL;
 static devfs_entry_t *devfs_list = NULL;
 static uint32_t      devfs_next_inode = 2;
 
+static size_t last_console_offset = 0;
+
 static vfs_node_t *devfs_finddir(vfs_node_t *dir, const char *name)
 {
     (void)dir;
@@ -101,6 +103,9 @@ static int console_write(vfs_node_t *n, uint64_t off, uint32_t sz, const void *b
     const char *s = b;
     for (uint32_t i = 0; i < sz; i++)
         print_char(s[i], -1, -1, 0x0f);
+
+    last_console_offset = get_cursor_offset();
+
     return (int)sz;
 }
 static int console_read(vfs_node_t *n, uint64_t off, uint32_t sz, void *b)
@@ -119,6 +124,11 @@ static int kbd_read(vfs_node_t *n, uint64_t off, uint32_t sz, void *b)
     int c;
     while ((c = kbd_getchar()) < 0)
         yield();
+
+    if (c != '\b')
+        print_char(c, -1, -1, 0x0f);
+    else if(c == '\b' && get_cursor_offset() > last_console_offset)
+        print_char(c, -1, -1, 0x0f);
 
     ((char *)b)[0] = (char)c;
     return 1;

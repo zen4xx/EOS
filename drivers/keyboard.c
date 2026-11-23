@@ -66,8 +66,6 @@ static void keyboard_callback(registers_t* regs) {
                                 : scan_ascii_map[scancode];
 
         buf[head++ % KBD_BUF] = ch;
-
-        print_char(ch, -1, -1, 0x0f);
     }
 }
 

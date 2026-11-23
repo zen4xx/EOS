@@ -17,4 +17,10 @@ void krnl_print_at(const char *msg, int col, int row, uint8_t color);
 void krnl_print(const char *msg);
 size_t print_char(char c, int col, int row, uint8_t attr); 
 
+size_t get_cursor_offset(void);
+void set_cursor_offset(size_t offset);
+size_t get_offset(int col, int row);
+int get_offset_row(size_t offset);
+int get_offset_col(size_t offset);
+
 #endif
