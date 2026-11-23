@@ -15,7 +15,6 @@
 #include "../fs/vfs.h"
 #include "../fs/devfs.h"
 
-volatile char _current_char = '\0';
 volatile char _is_current_task_foreground = 0;
 
 void kernel_main() {

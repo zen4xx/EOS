@@ -1,5 +1,4 @@
 #include "keyboard.h"
-#include "../kernel/kernel_api.h"
 #include "screen.h"
 
 #define KBD_DATA   0x60
@@ -69,8 +68,6 @@ static void keyboard_callback(registers_t* regs) {
         buf[head++ % KBD_BUF] = ch;
 
         print_char(ch, -1, -1, 0x0f);
-
-        raw_keyboard_input(ch);
     }
 }
 

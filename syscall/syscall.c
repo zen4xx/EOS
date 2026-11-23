@@ -2,7 +2,6 @@
 #include "../cpu/types.h"
 #include "../drivers/screen.h"
 #include "../drivers/ports.h"
-#include "../kernel/kernel_api.h"
 #include "../kernel/alloc.h"
 #include "../multitasking/mt.h"
 #include "../fs/fd.h"
