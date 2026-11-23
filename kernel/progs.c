@@ -281,7 +281,7 @@ static int parse_pipeline(vect_t *toks, stage_t *st, int *nst)
 void exec(char *cmd)
 {
     if (!cmd) return;
-    if (*cmd != '\n') return;
+    if (*cmd == '\n') return;
 
     vect_t toks;
     vect_init(&toks, sizeof(char *));
