@@ -38,4 +38,6 @@ void     paging_free_unmap(uint64_t virt, uint64_t pages);
 
 uint64_t paging_cr3(void);
 
+int paging_identity_extend(uint64_t phys_end);
+
 #endif /* PAGING_H */

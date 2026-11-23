@@ -30,7 +30,19 @@ void kernel_main() {
 
     const e820_map_t* map = e820_get();
 
-    pmm_init(0x800000, 512 * 1024 * 1024);
+    uint64_t pool_base = 0x800000;
+    uint64_t pool_end  = pool_base + 8 * 1024 * 1024;   // fallback
+
+    if (map) {
+        pool_end = pool_base;
+        for (uint32_t i = 0; i < map->count; i++)
+            if (map->entries[i].type == E820_USABLE) {
+                uint64_t e = map->entries[i].base + map->entries[i].length;
+                if (e > pool_end) pool_end = e;
+            }
+    }
+
+    pmm_init(pool_base, pool_end - pool_base);
 
     if (map) {
         for (uint32_t i = 0; i < map->count; i++)
@@ -44,8 +56,8 @@ void kernel_main() {
         pmm_init_region(0x800000, 8 * 1024 * 1024);
     }
 
-
     paging_init();
+    paging_identity_extend(pool_end);
     init_allocator();
 
     int res = ahci_init();

@@ -169,3 +169,21 @@ void paging_free_unmap(uint64_t virt, uint64_t pages) {
         if (p) pmm_free_page(p);
     }
 }
+
+int paging_identity_extend(uint64_t phys_end) {
+    uint64_t *pml4 = (uint64_t*)pml4_phys;
+    uint64_t *pdpt = table_at(pml4[0]);            // boot-PDPT, 512 slots
+    uint64_t gigs  = (phys_end + LARGE_1G - 1) / LARGE_1G;
+
+    for (uint64_t g = 4; g < gigs; g++) {          // [0..4 GiB) allready mapped stage2
+        if (pdpt[g] & PAGE_PRESENT) continue;
+        uint64_t pd = pmm_alloc_page_zero();
+        if (!pd) return -1;
+        uint64_t *p = (uint64_t*)pd;
+        for (int i = 0; i < 512; i++)
+            p[i] = (g * LARGE_1G + i * LARGE_2M) | PAGE_PRESENT | PAGE_WRITE | PAGE_PS;
+        pdpt[g] = pd | PAGE_PRESENT | PAGE_WRITE;
+    }
+    write_cr3(pml4_phys);                          // flush TLB
+    return 0;
+}

@@ -7,11 +7,13 @@
 #define PMM_WORDS     (PMM_MAX_PAGES / 64)
 #define PAGE PMM_PAGE_SIZE
 
-static uint64_t pmm_bitmap[PMM_WORDS];   /* bit set = page in use */
 static uint64_t pmm_base_phys;           /* page-aligned          */
 static uint64_t pmm_pages;               /* actually managed      */
 static uint64_t pmm_used;
 static uint64_t pmm_hint;                /* first-fit cursor      */
+
+static uint64_t* pmm_bitmap;
+static uint64_t  pmm_bm_pages;
 
 /* ---------------------------------------------------------------- bits */
 
@@ -119,16 +121,19 @@ static void free_run(uint64_t phys, uint64_t count) {
 
 void pmm_init(uint64_t base_address, uint64_t size) {
     uint64_t f = irq_save();
-    uint64_t base = (base_address + PAGE - 1) & ~(PAGE - 1);
-    uint64_t end  = (base_address + size) & ~(PAGE - 1);
+    uint64_t base  = (base_address + PAGE - 1) & ~(PAGE - 1);
+    uint64_t end   = (base_address + size) & ~(PAGE - 1);
     uint64_t pages = end > base ? (end - base) / PAGE : 0;
-    if (pages > PMM_MAX_PAGES) pages = PMM_MAX_PAGES;
 
-    memset(pmm_bitmap, 0xFF, sizeof(pmm_bitmap));
+    uint64_t words = (pages + 63) / 64;
+    pmm_bm_pages   = (words * 8 + PAGE - 1) / PAGE;
+
+    pmm_bitmap    = (uint64_t*)base;   // identity: phys == virt, pool < 4 GiB
     pmm_base_phys = base;
-    pmm_pages = pages;
-    pmm_used  = pages;
-    pmm_hint  = 0;
+    pmm_pages     = pages;
+    pmm_used      = pages;
+    pmm_hint      = 0;
+    memset(pmm_bitmap, 0xFF, words * 8);
     irq_restore(f);
 }
 
@@ -137,6 +142,10 @@ void pmm_init_region(uint64_t base_address, uint64_t size) {
     uint64_t pool_end = pmm_base_phys + pmm_pages * PAGE;
     uint64_t lo = (base_address + PAGE - 1) & ~(PAGE - 1);
     uint64_t hi = (base_address + size) & ~(PAGE - 1);
+    
+    uint64_t bm_end = pmm_base_phys + pmm_bm_pages * PAGE;
+    if (lo < bm_end) lo = bm_end;
+
     if (lo < pmm_base_phys) lo = pmm_base_phys;
     if (hi > pool_end)      hi = pool_end;
     for (uint64_t a = lo; a < hi; a += PAGE) {
