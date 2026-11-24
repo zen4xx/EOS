@@ -53,7 +53,7 @@ static const command_t commands[] = {
     { "shutdown", cmd_shutdown, "power off" },
     { "reboot",   cmd_reboot,   "reboot" },
     { "ls",       cmd_ls,       "list directory" },
-    { "cat",      cmd_cat,      "print files / stdin" },
+    { "cat",      cmd_cat,      "print files" },
     { "test",     cmd_test,     "run test task" },
 };
 
@@ -384,9 +384,12 @@ void shell(int argc, char **argv)
         int i = 0, c = '0';
         while (c != '\n') {
             c = getc();
-            if (c < 0) break;
-            if (c == '\b' && i > 0) { backspace(str); --i; continue; }
-            str[i++] = (char)c;
+            if (c != '\b') str[i++] = (char)c;
+            else // backspace
+            {
+                if (i > 0) { backspace(str); --i; continue; }
+                else continue;
+            }
             if (i == INPUT_BUF_SIZE - 1) {
                 str[i] = '\0';
                 print("\nERR: too big input\n");
